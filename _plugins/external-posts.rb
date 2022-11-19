@@ -34,3 +34,4 @@ module ExternalPosts
   end
 
 end
+
