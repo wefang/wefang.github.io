@@ -2,12 +2,12 @@
 layout: page
 permalink: /teaching/
 title: teaching
-description: Materials for courses you taught. Replace this text with your description.
+description: Teaching assistant
 nav: true
 nav_order: 5
 ---
 
-Teaching assistant:
+Courses:
 
 1. JHSPH 140.688 [Statistics for Genomics](https://www.jhsph.edu/courses/course/28956/2019/140.688.01/statistics-for-genomics)
 3. JHSPH 140.621-624 [Statistical Methods in Public Health]
