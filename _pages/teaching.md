@@ -7,9 +7,9 @@ nav: true
 nav_order: 5
 ---
 
-I taught in fourteen course-terms across five courses, to two audiences, graduate students in biostatistics and genomics, and scientists and public health students meeting statistical inference for the first time.
+I taught in fourteen course-terms across five courses, to two audiences, graduate students in biostatistics and related quantitative fields, and scientists and public health students meeting statistical inference for the first time.
 
-**For biostatistics and genomics graduate students**
+**For graduate students in biostatistics and related quantitative fields**
 
 - **JHSPH 140.688** [Statistics for Genomics](https://www.jhsph.edu/courses/course/28956/2019/140.688.01/statistics-for-genomics) · Spring 2020
 - **JHSPH 140.776** Statistical Computing · Fall 2017, Fall 2018
