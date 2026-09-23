@@ -1,17 +1,20 @@
 ---
 layout: page
 permalink: /publications/
-title: publications
-years: [2024, 2023, 2022, 2021, 2019]
+title: Publications
+description: Full list, newest first. Also on <a href="https://scholar.google.com/citations?user=ryHAkysAAAAJ">Google Scholar</a>.
 nav: true
-nav_order: 1
+nav_order: 2
 ---
+
 <!-- _pages/publications.md -->
+
+<!-- Bibsearch Feature -->
+
+{% include bib_search.liquid %}
+
 <div class="publications">
 
-{%- for y in page.years %}
-  <h2 class="year">{{y}}</h2>
-  {% bibliography -f papers -q @*[year={{y}}]* %}
-{% endfor %}
+{% bibliography %}
 
 </div>

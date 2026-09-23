@@ -1,8 +1,14 @@
 ---
-layout: cv
+layout: page
 permalink: /cv/
-title: cv
-nav: false
+title: CV
+description:
+nav: true
 nav_order: 4
-cv_pdf: example_pdf.pdf
 ---
+
+<p><a class="cv-download" href="/assets/pdf/Weixiang_Fang_CV.pdf">Download CV (PDF)</a></p>
+
+<object class="cv-embed" data="/assets/pdf/Weixiang_Fang_CV.pdf" type="application/pdf">
+  <p>Your browser cannot show the PDF here. <a href="/assets/pdf/Weixiang_Fang_CV.pdf">Open the CV</a>.</p>
+</object>
