@@ -58,7 +58,11 @@ def tint(c, f=0.55):
     return tuple(a + (1 - a) * f)
 
 
-IDENT_M = [mute(c) for c in IDENT]                 # cell identities, muted: fates and cell states
+# cell identities (fates, and cell states in the transfer figure): the blue, green and red of the
+# research statement's Figure 2, then two more muted hues for states 4 and 5
+IDENT_M = ["#6F8CA8", "#7DA58F", "#C48B66", "#D2AE5E", "#8F82AE"]
+# clones: a set with no blue, green or red, so a clone never reads as a fate
+CLONE_SET = ["#C9BCE3", "#F1B8C8", "#F2DD8C", "#F5C6A0", "#D8C8AA", "#BE97B6", "#E3CDEB", "#CFCDD3"]
 plt.rcParams["font.family"] = "DejaVu Sans"
 W, H = 12.0, 3.6
 DPI = 200
@@ -252,23 +256,37 @@ def signal_of(p):
 
 fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
 
-CLONE_COLS = [tint(mute(c, 0.3), 0.45) for c in (OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE, OI_YELLOW, "#8C96A3", "#B49A7A")]
+CLONE_COLS = CLONE_SET
 FATE_COLS = IDENT_M[:3]                            # the same colors as States 1 to 3 in the transfer figure
 SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#EEF0F3", "#A9B2C0", "#56637A"])
 
 
 def tissue(ax, cx, cy, scale, p, colors):
-    """Cells drawn as a cartoon: soft round cells outlined in a darker shade of their own color,
-    each with a nucleus, on a light tissue shape that follows the outer cells."""
+    """Flat 2D cells: each cell's Voronoi tile, cut to a disk around it and shrunk with rounded
+    corners so neighbours are separated by a thin gap, with a flat nucleus; the tissue behind them
+    follows the outer cells."""
     xy = np.c_[cx + scale * p[:, 0], cy + scale * p[:, 1]]
-    body = unary_union([Point(q).buffer(0.62 * scale, 20) for q in xy]).buffer(0.12 * scale)
+    lo, hi = xy.min(0) - 10, xy.max(0) + 10
+    far = np.array([[lo[0], lo[1]], [hi[0], lo[1]], [lo[0], hi[1]], [hi[0], hi[1]]])
+    vor = Voronoi(np.vstack([xy, far]))
+    cells_, keep = [], []
+    for i in range(len(xy)):
+        reg = vor.regions[vor.point_region[i]]
+        if -1 in reg or not reg:
+            continue
+        cells_.append(SPoly(vor.vertices[reg]).intersection(Point(xy[i]).buffer(0.62 * scale, 24)))
+        keep.append(i)
+    body = unary_union([c.buffer(0.3 * scale) for c in cells_]).buffer(-0.18 * scale)   # a smooth tissue edge
     for g in getattr(body, "geoms", [body]):
-        ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="#F3F1EE", ec="#A39E97", lw=1.3, zorder=2))
-    for i in np.argsort(-xy[:, 1]):                     # back to front, so the overlaps read as depth
-        c = colors[i]
-        ax.add_patch(matplotlib.patches.Circle(xy[i], 0.53 * scale, fc=c, ec=shade(c, 0.32), lw=0.8, zorder=3))
-        ax.add_patch(matplotlib.patches.Circle(xy[i] + rs.normal(0, 0.05 * scale, 2), 0.2 * scale,
-                                               fc=shade(c, 0.28), ec="none", zorder=4))
+        ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="#F1EEEA", ec="#B5AFA7", lw=1.0, zorder=2))
+    for i, c in zip(keep, cells_):
+        r = c.buffer(-0.1 * scale).buffer(0.05 * scale)          # a gap to the neighbours, rounded corners
+        if r.is_empty:
+            continue
+        for g in getattr(r, "geoms", [r]):
+            ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc=colors[i], ec="none", zorder=3))
+        ctr = c.centroid
+        ax.add_patch(matplotlib.patches.Circle((ctr.x, ctr.y), 0.17 * scale, fc=shade(colors[i], 0.3), ec="none", zorder=4))
     return body
 
 
