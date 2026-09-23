@@ -92,58 +92,83 @@ def text(ax, x, y, s, **kw):
 
 
 # =============================== 1. lineage ===============================
-# A lineage tree drawn with a cell at every division and at every sampled tip. Division times vary and
-# the tree is unbalanced, as a real one is. Each cell carries the same recorder integrations in its
-# nucleus; a division writes a new edit into one integration of a daughter (the newest edit in each
-# cell is ringed), so edits accumulate down the tree. On the right the sampled cells are sequenced,
-# which reads their records out as the rows of a character matrix.
+# Left: how an edit is written. Cas9, guided by its RNA, cuts a recorder integration and the repair
+# leaves a heritable edit. Middle: a lineage tree drawn with a cell at every division and every sampled
+# tip, division times varying and the tree unbalanced, as a real one is. Each cell carries the same
+# integrations in its nucleus; each division writes a new edit into one integration of a daughter
+# (ringed), so the edits accumulate down the tree. Right: the sampled cells are sequenced, and their
+# records are read out as the rows of a character matrix, with the dropouts a real readout has.
 fig, ax = canvas()
 rng = np.random.default_rng(9)
 NSITE = 5
 UNEDITED = "#2B2F36"
 NEW = ACCENT
 TIPY = 0.6
-# the tree: name -> (x, y of the cell, children); y is the time of division, tips sit at sampling time
+
+# ---------------- CRISPR writing an edit ----------------
+def dna(x0, x1, y, target_col, target_x):
+    ax.plot([x0, x1], [y + 0.05, y + 0.05], color=MUTED, lw=2.2, solid_capstyle="round", zorder=2)
+    ax.plot([x0, x1], [y - 0.05, y - 0.05], color=MUTED, lw=2.2, solid_capstyle="round", zorder=2)
+    for xx in np.arange(x0 + 0.06, x1, 0.09):
+        ax.plot([xx, xx], [y - 0.05, y + 0.05], color=GREY, lw=0.8, zorder=1)
+    ax.add_patch(Rectangle((target_x - 0.16, y - 0.09), 0.32, 0.18, fc=target_col, ec="none", zorder=3))
+
+
+dna(0.25, 2.35, 2.55, UNEDITED, 1.3)
+text(ax, 1.3, 2.26, "Integration", fontsize=10, color=MUTED)
+# Cas9 sitting on the target, with its guide RNA
+ax.add_patch(matplotlib.patches.FancyBboxPatch((0.88, 2.66), 0.84, 0.52, boxstyle="round,pad=0.02,rounding_size=0.22",
+                                               fc="#DCD6E8", ec="#8E86A8", lw=1.1, zorder=4))
+text(ax, 1.3, 2.97, "Cas9", fontsize=10.5, color=INK)
+gx = np.linspace(1.05, 1.55, 40)
+ax.plot(gx, 2.74 + 0.05 * np.sin((gx - 1.05) * 18), color=ACCENT, lw=1.4, zorder=5)
+text(ax, 2.05, 3.22, "Guide RNA", fontsize=9.5, color=ACCENT, ha="left")
+ax.plot([1.72, 2.03], [2.8, 3.15], color=ACCENT, lw=0.8, zorder=5)
+ax.add_patch(FancyArrowPatch((1.3, 2.05), (1.3, 1.55), arrowstyle="-|>", mutation_scale=13, color=INK, lw=1.4))
+text(ax, 1.45, 1.8, "Cut and repair", fontsize=10, color=MUTED, ha="left")
+dna(0.25, 2.35, 1.2, IDENT[0], 1.3)
+ax.add_patch(Rectangle((1.3 - 0.21, 1.2 - 0.14), 0.42, 0.28, fc="none", ec=NEW, lw=1.8, zorder=4))
+text(ax, 1.3, 0.86, "Heritable edit", fontsize=10, color=INK)
+
+# ---------------- the tree ----------------
 TREE = {
-    "r": (3.95, 3.2, ["A", "B"]),
-    "A": (2.1, 2.3, ["A1", "t3"]),
-    "A1": (1.4, 1.45, ["t1", "t2"]),
-    "B": (5.75, 2.42, ["B1", "B2"]),
-    "B1": (4.85, 1.55, ["t4", "t5"]),
-    "B2": (6.75, 1.45, ["t6", "t7"]),
+    "r": (5.95, 3.2, ["A", "B"]),
+    "A": (4.6, 2.3, ["A1", "t3"]),
+    "A1": (4.05, 1.45, ["t1", "t2"]),
+    "B": (7.4, 2.42, ["B1", "B2"]),
+    "B1": (6.56, 1.55, ["t4", "t5"]),
+    "B2": (8.21, 1.45, ["t6", "t7"]),
 }
 TIPS = ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
-TIPX = dict(zip(TIPS, [0.95, 1.85, 3.0, 4.35, 5.3, 6.3, 7.25]))
+TIPX = dict(zip(TIPS, [3.55, 4.38, 5.25, 6.15, 6.98, 7.8, 8.62]))
 
 
-def cell(x, y, sites, new=None, rx=0.4, ry=0.31, seed=0):
+def cell(x, y, sites, new=None, rx=0.36, ry=0.29, seed=0):
     """A cell with an irregular outline, and a nucleus holding the integration sites."""
     r = np.random.default_rng(seed)
     th = np.linspace(0, 2 * np.pi, 120)
     wob = 1 + 0.07 * np.sin(3 * th + r.uniform(0, 6)) + 0.05 * np.cos(5 * th + r.uniform(0, 6)) \
         + 0.03 * np.sin(7 * th + r.uniform(0, 6))
     ax.add_patch(Polygon(np.c_[x + rx * wob * np.cos(th), y + ry * wob * np.sin(th)], closed=True,
-                         fc="#F6EFF3", ec="#8E8395", lw=1.2, zorder=3))
+                         fc="#F6EFF3", ec="#8E8395", lw=1.1, zorder=3))
     nx, ny = x + r.normal(0, 0.02), y + r.normal(0, 0.015)
-    ax.add_patch(matplotlib.patches.Ellipse((nx, ny), 0.54, 0.34, angle=r.uniform(-8, 8),
-                                            fc="#E6DDEA", ec="#A497AD", lw=0.9, zorder=4))
-    w, gap = 0.062, 0.024
+    ax.add_patch(matplotlib.patches.Ellipse((nx, ny), 0.5, 0.31, angle=r.uniform(-8, 8),
+                                            fc="#E6DDEA", ec="#A497AD", lw=0.8, zorder=4))
+    w, gap = 0.056, 0.022
     x0 = nx - (NSITE * w + (NSITE - 1) * gap) / 2
     for s in range(NSITE):
         c = sites[s] if sites[s] is not None else UNEDITED
-        ax.add_patch(Rectangle((x0 + s * (w + gap), ny - 0.095), w, 0.19, fc=c, ec="none", zorder=5))
+        ax.add_patch(Rectangle((x0 + s * (w + gap), ny - 0.085), w, 0.17, fc=c, ec="none", zorder=5))
         if s == new:                                            # the edit this cell's division wrote
-            ax.add_patch(Rectangle((x0 + s * (w + gap) - 0.025, ny - 0.12), w + 0.05, 0.24, fc="none",
-                                   ec=NEW, lw=1.8, zorder=6))
+            ax.add_patch(Rectangle((x0 + s * (w + gap) - 0.022, ny - 0.11), w + 0.044, 0.22, fc="none",
+                                   ec=NEW, lw=1.6, zorder=6))
 
 
 def branch(x0, y0, x1, y1):
-    """A smooth branch from the bottom of a parent cell to the top of a daughter."""
     t = np.linspace(0, 1, 40)
-    ya, yb = y0 - 0.3, y1 + 0.3
-    xs_ = x0 + (x1 - x0) * (3 * t ** 2 - 2 * t ** 3)
-    ys_ = ya + (yb - ya) * t
-    ax.plot(xs_, ys_, color=INK, lw=1.4, solid_capstyle="round", zorder=2)
+    ya, yb = y0 - 0.28, y1 + 0.28
+    ax.plot(x0 + (x1 - x0) * (3 * t ** 2 - 2 * t ** 3), ya + (yb - ya) * t, color=INK, lw=1.3,
+            solid_capstyle="round", zorder=2)
 
 
 RECORD = {}
@@ -151,10 +176,7 @@ RECORD = {}
 
 def grow(name, sites, new, seed):
     RECORD[name] = sites
-    if name in TREE:
-        x, y, kids = TREE[name]
-    else:
-        x, y, kids = TIPX[name], TIPY, []
+    x, y, kids = TREE[name] if name in TREE else (TIPX[name], TIPY, [])
     cell(x, y, sites, new, seed=seed)
     for k, kid in enumerate(kids):
         child = list(sites)
@@ -170,38 +192,35 @@ def grow(name, sites, new, seed):
 
 grow("r", [None] * NSITE, None, 1)
 for i, t in enumerate(TIPS):
-    text(ax, TIPX[t], TIPY - 0.45, str(i + 1), fontsize=10.5, color=MUTED)
-ax.add_patch(FancyArrowPatch((0.32, 3.4), (0.32, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
-text(ax, 0.12, 1.9, "Time", fontsize=11, rotation=90)
+    text(ax, TIPX[t], TIPY - 0.42, str(i + 1), fontsize=10, color=MUTED)
+ax.add_patch(FancyArrowPatch((3.05, 3.4), (3.05, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
+text(ax, 2.87, 1.9, "Time", fontsize=10.5, rotation=90)
+# the tree's key sits with the tree, in the space beside the root
+KX, KY = 3.35, 3.28
+ax.add_patch(Rectangle((KX, KY - 0.08), 0.06, 0.16, fc=UNEDITED, ec="none"))
+text(ax, KX + 0.14, KY, "Unedited", fontsize=9.5, ha="left")
+for j, c in enumerate(ALLELES[:3]):
+    ax.add_patch(Rectangle((KX + j * 0.075, KY - 0.43), 0.06, 0.16, fc=c, ec="none"))
+text(ax, KX + 0.29, KY - 0.35, "Edited", fontsize=9.5, ha="left")
+ax.add_patch(Rectangle((KX, KY - 0.78), 0.06, 0.16, fc=IDENT[0], ec="none"))
+ax.add_patch(Rectangle((KX - 0.025, KY - 0.805), 0.11, 0.21, fc="none", ec=NEW, lw=1.6))
+text(ax, KX + 0.14, KY - 0.7, "Newest edit", fontsize=9.5, ha="left")
 
-# sequencing: the sampled cells' records read out as the rows of a character matrix
-ax.add_patch(FancyArrowPatch((7.85, 1.85), (8.6, 1.85), arrowstyle="-|>", mutation_scale=16, color=INK, lw=1.6))
-text(ax, 8.22, 2.15, "Sequence", fontsize=11, color=INK)
-MX, MY, cw, ch = 9.05, 3.0, 0.3, 0.3
+# ---------------- sequencing ----------------
+ax.add_patch(FancyArrowPatch((9.05, 1.85), (9.5, 1.85), arrowstyle="-|>", mutation_scale=15, color=INK, lw=1.5))
+text(ax, 9.27, 2.13, "Sequence", fontsize=10.5, color=INK)
+MX, MY, cw, ch = 9.95, 2.95, 0.3, 0.29
 for i, t in enumerate(TIPS):
     y = MY - i * (ch + 0.06)
-    text(ax, MX - 0.18, y + ch / 2, str(i + 1), fontsize=10, color=MUTED)
+    text(ax, MX - 0.17, y + ch / 2, str(i + 1), fontsize=10, color=MUTED)
     for s in range(NSITE):
         c = RECORD[t][s] if RECORD[t][s] is not None else UNEDITED
-        if rng.random() < 0.06:
+        if rng.random() < 0.2:
             c = DROPOUT                                        # the readout failed at this site
         ax.add_patch(Rectangle((MX + s * (cw + 0.05), y), cw, ch, fc=c, ec="none", zorder=3))
-text(ax, MX + NSITE * (cw + 0.05) / 2, 3.52, "Sequenced records", fontsize=11, color=INK)
-# key
-KX = 11.0
-for k, (lab, draw) in enumerate((("Unedited", "u"), ("Edited", "e"), ("Newest\nedit", "n"), ("Dropout", "d"))):
-    y = 2.95 - k * 0.55
-    if draw == "u":
-        ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=UNEDITED, ec="none"))
-    elif draw == "e":
-        for j, c in enumerate(ALLELES[:3]):
-            ax.add_patch(Rectangle((KX + j * 0.085 - 0.07, y - 0.1), 0.065, 0.2, fc=c, ec="none"))
-    elif draw == "n":
-        ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=IDENT[0], ec="none"))
-        ax.add_patch(Rectangle((KX - 0.03, y - 0.13), 0.13, 0.26, fc="none", ec=NEW, lw=1.8))
-    else:
-        ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=DROPOUT, ec="none"))
-    text(ax, KX + 0.2, y, lab, fontsize=9.5, ha="left")
+text(ax, MX + NSITE * (cw + 0.05) / 2, 3.45, "Sequenced records", fontsize=11, color=INK)
+ax.add_patch(Rectangle((MX, 0.2), 0.16, 0.16, fc=DROPOUT, ec="none"))
+text(ax, MX + 0.26, 0.28, "Dropout", fontsize=9.5, ha="left")
 save(fig, "lineage.png")
 
 # =============================== 2. fate ===============================
@@ -222,11 +241,13 @@ GENS, CLONE_GEN, EARLY_GEN = 9, 3, 6
 
 
 def relax(p, iters=30):
+    """Overlapping cells push apart; a weak confinement across the tissue makes it grow long."""
     for _ in range(iters):
         d = p[:, None, :] - p[None, :, :]
         r = np.hypot(d[..., 0], d[..., 1]) + np.eye(len(p)) * 9
         over = np.clip(1.0 - r, 0, None)
         p = p + 0.25 * (d / r[..., None] * over[..., None]).sum(1)
+        p[:, 1] -= 0.012 * p[:, 1]
     return p
 
 
@@ -247,6 +268,15 @@ for g in range(1, GENS + 1):
     if g == EARLY_GEN:
         snap = dict(pos=pos.copy(), clone=clone.copy())
 
+# a gentle bend, so the tissue is not a plain ellipse
+def bend(p):
+    q = p.copy()
+    q[:, 1] += 0.012 * (q[:, 0] ** 2) - 0.06 * q[:, 0]
+    return q
+
+
+pos = bend(pos)
+snap["pos"] = bend(snap["pos"])
 XMIN, XMAX = pos[:, 0].min(), pos[:, 0].max()
 
 
@@ -258,7 +288,8 @@ fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 
 
 CLONE_COLS = CLONE_SET
 FATE_COLS = IDENT_M[:3]                            # the same colors as States 1 to 3 in the transfer figure
-SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#EEF0F3", "#A9B2C0", "#56637A"])
+# the signal has a scale of its own, pale gold to deep plum, shared with no other meaning
+SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#FFF4C7", "#F2B35E", "#C8505F", "#5A1E5C"])
 
 
 def tissue(ax, cx, cy, scale, p, colors):
@@ -294,7 +325,7 @@ fig, ax = canvas()
 # early: two small tissues, clones and the signal they sit in
 early, eclone = snap["pos"], snap["clone"]
 # one scale for both stages, set so the grown tissue fills its panel; the early tissue is true to size
-SC = min(3.3 / np.ptp(pos[:, 0]), 2.45 / np.ptp(pos[:, 1]))
+SC = min(3.1 / np.ptp(pos[:, 0]), 2.45 / np.ptp(pos[:, 1]))
 tissue(ax, 1.15, 1.9, SC, early, [CLONE_COLS[c % 8] for c in eclone])
 tissue(ax, 3.2, 1.9, SC, early, [SIG_CMAP(v) for v in signal_of(early)])
 # late: the grown tissue, clones and the fate each cell took
@@ -308,6 +339,11 @@ for x0, x1, lab in ((0.3, 4.05, "Early"), (4.85, 11.85, "Late")):
          bbox=dict(boxstyle="square,pad=0.2", fc="white", ec="none"))
 for x, lab in ((1.15, "Clones"), (3.2, "Signal"), (6.45, "Clones"), (10.05, "Fates")):
     text(ax, x, 0.28, lab, fontsize=11.5, color=MUTED)
+# the signal's scale bar, under the signal panel
+sbar = np.linspace(0, 1, 200).reshape(1, -1)
+ax.imshow(sbar, extent=(2.55, 3.85, 0.02, 0.12), aspect="auto", cmap=SIG_CMAP, zorder=3)
+text(ax, 2.5, 0.07, "Low", fontsize=9, ha="right")
+text(ax, 3.9, 0.07, "High", fontsize=9, ha="left")
 # fate key
 for k, (c, lab) in enumerate(zip(FATE_COLS, ("Fate 1", "Fate 2", "Fate 3"))):
     ax.add_patch(Rectangle((8.95 + k * 0.85, 0.02), 0.16, 0.12, fc=c, ec="none"))
@@ -322,7 +358,7 @@ save(fig, "fate.png")
 # Human is the reference and has every state; each model organism lacks some of them (outlined).
 # Model organisms are drawn in neutrals and human in the accent, so the figure reads human-centered.
 SIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "silhouettes")
-W3, H3, Y3 = 12.0, 4.6, 0.38                     # the bottom strip, where a legend used to be, is cut
+W3, H3, Y3 = 12.0, 4.6, 0.2                      # room under the human plane for one label
 fig = plt.figure(figsize=(W3, H3 - Y3), dpi=DPI)
 ax = fig.add_axes([0, 0, 1, 1])
 ax.set_xlim(0, W3)
@@ -400,6 +436,7 @@ ELEM = {"zebrafish": [0.24, 0.6, 0.73], "mouse": [0.22, 0.48, 0.76], "macaque": 
 GA = {"zebrafish": 0.03, "mouse": 0.02, "macaque": 0.04, "human": 0.04}      # gene A, left flank
 GB = {"zebrafish": 0.86, "mouse": 0.89, "macaque": 0.88, "human": 0.885}     # gene B, reverse strand
 TRACK_B = 0.3                                    # the track runs along the plane at this depth
+NOMAP = 0.4                                      # a zebrafish element that maps to nothing in human
 aa = np.linspace(0.0, 1.0, 600)
 for k, (lab, key) in enumerate(SPECIES):
     draw_plane(Lk, k, key, 2 + k * 0.01)
@@ -407,7 +444,11 @@ for k, (lab, key) in enumerate(SPECIES):
     for e in ELEM[key]:
         sig += 0.5 * np.exp(-((aa - e) ** 2) / (2 * 0.011 ** 2))
     for e in rs.uniform(0.12, 0.8, 3):                                   # species-specific peaks
+        if key == "human" and abs(e - NOMAP) < 0.07:
+            continue
         sig += 0.15 * np.exp(-((aa - e) ** 2) / (2 * 0.008 ** 2))
+    if key == "zebrafish":                                              # an element with no human counterpart
+        sig += 0.42 * np.exp(-((aa - NOMAP) ** 2) / (2 * 0.011 ** 2))
     base = np.array([Lk(k, a, TRACK_B) for a in aa])
     ax.fill_between(base[:, 0], base[:, 1], base[:, 1] + 0.95 * sig, color=scol(key), alpha=0.85, lw=0, zorder=5)
     ax.plot(base[:, 0], base[:, 1], color=GREY, lw=0.9, zorder=4)
@@ -434,7 +475,14 @@ for k, j in zip(range(3), (2, 1, 0)):
                                  color=INK, lw=1.3, zorder=7))
     hx, hy = q
     ax.add_patch(matplotlib.patches.Ellipse((hx, hy + 0.22), 0.2, 0.56, fc="none", ec=ACCENT, lw=1.4, zorder=7))
-text(ax, 3.9, 4.42, "Regulatory elements", fontsize=12, color=INK)
+# the no-map example: the zebrafish element has no counterpart in human, so its line ends in a cross
+p = Lk(0, NOMAP, TRACK_B)
+q = Lk(3, NOMAP, TRACK_B)
+ax.plot([p[0], q[0] + 0.02], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.2, ls=(0, (3, 2)), zorder=6)
+ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.05, q[1] + 0.23], color=MUTED, lw=2.0, zorder=7)
+ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=2.0, zorder=7)
+text(ax, q[0] - 0.1, ROW[3] - 0.26, "No human counterpart", fontsize=9, color=MUTED)
+text(ax, 3.9, 4.42, "Regulatory Elements", fontsize=12, color=INK)
 
 # ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
 STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
@@ -459,7 +507,7 @@ for k, (lab, key) in enumerate(SPECIES):
 for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
         ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=GREY, lw=0.9, ls=(0, (3, 2)), zorder=1)
-text(ax, 8.95, 4.42, "Cell states, aligned to human", fontsize=12, color=INK)
+text(ax, 8.95, 4.42, "Mapped Cell States", fontsize=12, color=INK)
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
