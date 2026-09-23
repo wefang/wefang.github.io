@@ -1,11 +1,12 @@
 """Draw the three research-area images for the about page, wide and short so each spans the page.
 
-  lineage.png   a dated lineage tree with the recorder edits that happened on its branches, and the
-                character matrix the sampled cells carry (colored as in the research statement)
+  lineage.png   a lineage tree with a cell at each node; the recorder integrations inside each nucleus
+                accumulate edits division by division (colored as in the research statement)
   fate.png      a small simulation: clones grow and divide across a tissue with a signal gradient,
                 shown once colored by clone and once colored by the fate each cell took
-  transfer.png  a phylogeny joining model organisms and human, a functional genomics signal track
-                for each, syntenic blocks between them, and each organism's proposal onto human
+  transfer.png  a phylogeny with a silhouette per species, a functional genomics signal track for each
+                with orthologous genes marked, each organism's proposal onto a human element, and the
+                cell states of each species as clusters in a stack of embedding planes
 
 Schematic throughout, and none of it reproduces a figure from a proposal or an unpublished manuscript.
 
@@ -56,97 +57,65 @@ def text(ax, x, y, s, **kw):
 
 
 # =============================== 1. lineage ===============================
+# A lineage tree drawn with a cell at every node. Each cell carries the same set of recorder
+# integrations inside its nucleus; every division writes a new edit into one integration of a daughter,
+# so the edits accumulate down the tree and each sampled cell ends with its own record.
 fig, ax = canvas()
-rng = np.random.default_rng(4)
-NSITE, NTIP = 8, 12
-# a random binary tree with dated nodes, drawn sideways: time runs left to right
-X0, X1 = 0.55, 5.55                      # root time, sampling time
-Y0, Y1 = 0.45, 3.0                      # tip rows span
+rng = np.random.default_rng(9)
+NSITE = 5
+LEVELS = [3.1, 2.25, 1.4, 0.52]                    # cell centers, root at the top
+LEAF_X = np.linspace(1.35, 9.85, 8)
+UNEDITED = "#2B2530"
 
 
-def split(tips, t, depth):
-    """Divide a set of tips at time t; returns nested (time, children) structure."""
-    if len(tips) == 1:
-        return ("tip", tips[0])
-    k = int(rng.integers(1, len(tips)))
-    k = max(1, min(len(tips) - 1, len(tips) // 2 + int(rng.integers(-1, 2))))
-    tl = t + (X1 - t) * rng.uniform(0.18, 0.42)
-    tr = t + (X1 - t) * rng.uniform(0.18, 0.42)
-    return ("node", t, split(tips[:k], tl, depth + 1), split(tips[k:], tr, depth + 1))
-
-
-tree = split(list(range(NTIP)), X0, 0)
-tip_y = {i: Y1 - i * (Y1 - Y0) / (NTIP - 1) for i in range(NTIP)}
-states = {i: [None] * NSITE for i in range(NTIP)}
-used_sites = []
-
-
-def ypos(n):
-    if n[0] == "tip":
-        return tip_y[n[1]]
-    return (ypos(n[2]) + ypos(n[3])) / 2
-
-
-def tips_of(n):
-    return [n[1]] if n[0] == "tip" else tips_of(n[2]) + tips_of(n[3])
-
-
-def draw(n, parent_t, record):
-    """Draw the branch into n from parent_t; an edit may land on it and is inherited below."""
-    y = ypos(n)
-    t = X1 if n[0] == "tip" else n[1]
-    ax.plot([parent_t, t], [y, y], color=INK, lw=1.6, solid_capstyle="round", zorder=2)
-    record = list(record)
-    free = [s for s in range(NSITE) if record[s] is None]
-    if parent_t < t - 0.35 and free and rng.random() < 0.8:
-        s = int(rng.choice(free))
-        a = ALLELES[int(rng.integers(len(ALLELES)))]
-        record[s] = a
-        ex = parent_t + (t - parent_t) * rng.uniform(0.35, 0.65)
-        ax.add_patch(Rectangle((ex - 0.08, y - 0.08), 0.16, 0.16, fc=a, ec="white", lw=0.8, zorder=4))
-    if n[0] == "tip":
-        states[n[1]] = record
-        return
-    ya, yb = ypos(n[2]), ypos(n[3])
-    ax.plot([t, t], [ya, yb], color=INK, lw=1.6, solid_capstyle="round", zorder=2)
-    draw(n[2], t, record)
-    draw(n[3], t, record)
-
-
-ax.plot([X0 - 0.35, X0], [ypos(tree)] * 2, color=INK, lw=1.6, zorder=2)
-ax.plot([X0], [ypos(tree)], "o", ms=5, color=INK, zorder=3)
-draw(tree[2], X0, [None] * NSITE)
-draw(tree[3], X0, [None] * NSITE)
-ax.plot([X0, X0], [ypos(tree[2]), ypos(tree[3])], color=INK, lw=1.6, zorder=2)
-for i in range(NTIP):
-    ax.plot([X1], [tip_y[i]], "o", ms=4.2, color=INK, zorder=3)
-# time axis
-ax.add_patch(FancyArrowPatch((X0 - 0.3, 0.14), (X1, 0.14), arrowstyle="-|>", mutation_scale=11, color=GREY, lw=1.1))
-text(ax, X1 + 0.12, 0.14, "Time", fontsize=11, ha="left")
-
-# the character matrix the sampled cells carry: rows are cells, columns are recorder sites
-MX = 6.35
-cw, ch = 0.42, (Y1 - Y0) / (NTIP - 1) * 0.84
-for i in range(NTIP):
-    rec = states[i]
+def cell(x, y, sites, rx=0.42, ry=0.33, seed=0):
+    """A cell with an irregular outline, and a nucleus holding the integration sites."""
+    r = np.random.default_rng(seed)
+    th = np.linspace(0, 2 * np.pi, 120)
+    wob = 1 + 0.07 * np.sin(3 * th + r.uniform(0, 6)) + 0.05 * np.cos(5 * th + r.uniform(0, 6)) \
+        + 0.03 * np.sin(7 * th + r.uniform(0, 6))
+    ax.add_patch(Polygon(np.c_[x + rx * wob * np.cos(th), y + ry * wob * np.sin(th)], closed=True,
+                         fc="#F6EFF3", ec="#8E8395", lw=1.2, zorder=3))
+    nx, ny = x + r.normal(0, 0.02), y + r.normal(0, 0.015)
+    ax.add_patch(matplotlib.patches.Ellipse((nx, ny), 0.56, 0.36, angle=r.uniform(-8, 8),
+                                            fc="#E6DDEA", ec="#A497AD", lw=0.9, zorder=4))
+    w, gap = 0.064, 0.024
+    x0 = nx - (NSITE * w + (NSITE - 1) * gap) / 2
     for s in range(NSITE):
-        c = rec[s] if rec[s] is not None else INK
-        if rng.random() < 0.07:
-            c = DROPOUT                                    # the readout failed at this site
-        ax.add_patch(Rectangle((MX + s * (cw + 0.05), tip_y[i] - ch / 2), cw, ch, fc=c, ec="none", zorder=3))
-    ax.plot([X1 + 0.1, MX - 0.08], [tip_y[i]] * 2, color=HAIR, lw=0.9, ls=(0, (2, 2)), zorder=1)
-text(ax, MX + NSITE * (cw + 0.05) / 2, 3.33, "Recorded sites", fontsize=12, color=INK)
-text(ax, (X0 + X1) / 2, 3.33, "Lineage with recording events", fontsize=12, color=INK)
-# legend
-LX = MX + NSITE * (cw + 0.05) + 0.25
-for k, (c, lab) in enumerate(((INK, "Unedited"), (DROPOUT, "Dropout"), (TEAL, "Edits"))):
-    y = 2.75 - k * 0.42
-    if lab == "Edits":
-        for j, cc in enumerate(ALLELES[:4]):
-            ax.add_patch(Rectangle((LX + j * 0.1, y - 0.1), 0.09, 0.2, fc=cc, ec="none"))
-    else:
-        ax.add_patch(Rectangle((LX, y - 0.1), 0.37, 0.2, fc=c, ec="none"))
-    text(ax, LX + 0.5, y, lab, fontsize=10.5, ha="left")
+        c = sites[s] if sites[s] is not None else UNEDITED
+        ax.add_patch(Rectangle((x0 + s * (w + gap), ny - 0.1), w, 0.2, fc=c, ec="none", zorder=5))
+
+
+def grow(level, lo, hi, sites, px=None, py=None, node=0):
+    x = float(np.mean(LEAF_X[lo:hi]))
+    y = LEVELS[level]
+    if px is not None:                           # the branch from the parent, with the edit it wrote
+        ax.plot([px, px, x, x], [py - 0.34, (py + y) / 2 + 0.05, (py + y) / 2 + 0.05, y + 0.34],
+                color=INK, lw=1.4, solid_joinstyle="round", zorder=2)
+    cell(x, y, sites, seed=node)
+    if level == len(LEVELS) - 1:
+        return
+    mid = (lo + hi) // 2
+    for k, (a, b) in enumerate(((lo, mid), (mid, hi))):
+        child = list(sites)
+        free = [s for s in range(NSITE) if child[s] is None]
+        if free and rng.random() < 0.9:
+            s = int(rng.choice(free))
+            child[s] = ALLELES[int(rng.integers(len(ALLELES)))]
+        grow(level + 1, a, b, child, x, y, node * 2 + 1 + k)
+
+
+grow(0, 0, 8, [None] * NSITE)
+ax.add_patch(FancyArrowPatch((0.45, 3.35), (0.45, 0.3), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
+text(ax, 0.22, 1.85, "Time", fontsize=11, rotation=90)
+# key
+KX = 10.55
+ax.add_patch(Rectangle((KX, 2.62), 0.07, 0.2, fc=UNEDITED, ec="none"))
+text(ax, KX + 0.17, 2.72, "Unedited", fontsize=10.5, ha="left")
+for j, c in enumerate(ALLELES[:4]):
+    ax.add_patch(Rectangle((KX + j * 0.09, 2.2), 0.07, 0.2, fc=c, ec="none"))
+text(ax, KX + 0.43, 2.3, "Edited", fontsize=10.5, ha="left")
+text(ax, KX + 0.55, 1.8, "Integrations\ninside each\nnucleus", fontsize=9.5, color=MUTED)
 save(fig, "lineage.png")
 
 # =============================== 2. fate ===============================
@@ -321,31 +290,20 @@ xs = np.linspace(TX0, TX1, 700)
 ELEM = {"zebrafish": [2.95, 4.45, 5.0], "mouse": [2.85, 3.95, 5.1], "macaque": [3.0, 4.05, 5.05], "human": [3.02, 4.08, 5.07]}
 GA = {"zebrafish": 2.05, "mouse": 2.02, "macaque": 2.08, "human": 2.08}
 GB = {"zebrafish": 5.45, "mouse": 5.6, "macaque": 5.55, "human": 5.57}
-BLOCKS = {  # (start, end, color, strand) along the genome axis, in the order they occur
-    "zebrafish": [(2.45, 3.35, "#C9B8E6", 1), (3.45, 4.75, "#F6C9A0", -1), (4.8, 5.35, "#B8D8C8", 1)],
-    "mouse": [(2.45, 3.4, "#C9B8E6", 1), (3.5, 4.55, "#F6C9A0", 1), (4.65, 5.45, "#B8D8C8", 1)],
-    "macaque": [(2.5, 3.45, "#C9B8E6", 1), (3.55, 4.55, "#F6C9A0", 1), (4.62, 5.4, "#B8D8C8", 1)],
-    "human": [(2.5, 3.45, "#C9B8E6", 1), (3.55, 4.57, "#F6C9A0", 1), (4.63, 5.42, "#B8D8C8", 1)],
-}
-
-
-def gene(x, y, color, label=None):
-    ax.add_patch(Polygon([(x, y - 0.07), (x + 0.26, y - 0.07), (x + 0.34, y), (x + 0.26, y + 0.07), (x, y + 0.07)],
-                         closed=True, fc=color, ec="none", zorder=5))
+def gene(x, y, color, label=None, strand=1):
+    """A gene arrow; strand -1 points left, as a gene on the reverse strand."""
+    pts = [(0, -0.07), (0.26, -0.07), (0.34, 0), (0.26, 0.07), (0, 0.07)]
+    if strand < 0:
+        pts = [(0.34 - px, py) for px, py in pts]
+    ax.add_patch(Polygon([(x + px, y + py) for px, py in pts], closed=True, fc=color, ec="none", zorder=5))
     if label:
         text(ax, x + 0.17, y + 0.2, label, fontsize=9.5, color=INK, style="italic")
 
 
 for (lab, key, col), y in zip(SPECIES, ROW):
-    # the synteny blocks, drawn as a band just under the track with their orientation
-    for s0, s1, bc, strand in BLOCKS[key]:
-        ax.add_patch(Rectangle((s0, y - 0.2), s1 - s0, 0.1, fc=bc, ec="none", zorder=2))
-        ax.add_patch(FancyArrowPatch((s0 + 0.08, y - 0.15) if strand > 0 else (s1 - 0.08, y - 0.15),
-                                     (s1 - 0.08, y - 0.15) if strand > 0 else (s0 + 0.08, y - 0.15),
-                                     arrowstyle="-|>", mutation_scale=6, color=MUTED, lw=0.7, zorder=3))
     sig = 0.03 * rs.random(xs.size)
     for k, e in enumerate(ELEM[key]):
-        h = 0.5 if not (key == "human" and k == 0) else 0.07           # element 1 is silent in human
+        h = 0.5
         sig += h * np.exp(-((xs - e) ** 2) / (2 * 0.045 ** 2))
     for e in rs.uniform(TX0 + 0.5, TX1 - 0.8, 3):                       # species-specific peaks
         sig += 0.15 * np.exp(-((xs - e) ** 2) / (2 * 0.03 ** 2))
@@ -353,21 +311,23 @@ for (lab, key, col), y in zip(SPECIES, ROW):
     ax.plot([TX0, TX1], [y, y], color=GREY, lw=1, zorder=2)
     top = key == "zebrafish"
     gene(GA[key], y, INK, "Gene A" if top else None)
-    gene(GB[key], y, INK, "Gene B" if top else None)
+    gene(GB[key], y, INK, "Gene B" if top else None, strand=-1)
 # orthologous genes joined across species
 for (_, a, _), (_, b, _), ya, yb in zip(SPECIES, SPECIES[1:], ROW, ROW[1:]):
     for g in (GA, GB):
-        ax.plot([g[a] + 0.17, g[b] + 0.17], [ya - 0.22, yb + 0.1], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
-# each model organism's proposal for the element in the second block, onto the human track
-for (lab, key, col), y in zip(SPECIES[:3], ROW[:3]):
-    ax.add_patch(FancyArrowPatch((ELEM[key][1] + 0.1, y + 0.3), (ELEM["human"][1] + 0.08, ROW[3] + 0.5),
+        ax.plot([g[a] + 0.17, g[b] + 0.17], [ya - 0.1, yb + 0.1], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
+# each model organism proposes a different human element, from the element it has evidence for
+for (lab, key, col), y, k in zip(SPECIES[:3], ROW[:3], (2, 1, 0)):
+    ax.add_patch(FancyArrowPatch((ELEM[key][k] + 0.1, y + 0.3), (ELEM["human"][k] + 0.08, ROW[3] + 0.5),
                                  connectionstyle="arc3,rad=-0.3", arrowstyle="-|>", mutation_scale=11,
                                  color=col, lw=1.4, zorder=6))
 text(ax, (TX0 + TX1) / 2, 4.38, "Regulatory elements", fontsize=12, color=INK)
-text(ax, 4.0, 0.2, "Synteny blocks shown under each track, with orientation", fontsize=9.5, color=MUTED)
 
 # ---------------- right: a stack of embedding planes, one per species ----------------
-STAGE = plt.cm.YlGnBu
+# each cell state is a cluster, placed alike in every species with a small species-specific shift;
+# matching clusters are linked plane to plane, and the two latest states are missing in human
+STATES = [("State 1", "#F28E2B", 0.13, 0.5), ("State 2", "#E15759", 0.38, 0.28), ("State 3", "#76B7B2", 0.38, 0.72),
+          ("State 4", "#59A14F", 0.72, 0.25), ("State 5", "#B07AA1", 0.78, 0.72)]
 
 
 def Pk(k, a, b):
@@ -375,45 +335,30 @@ def Pk(k, a, b):
     return ox + 3.5 * a + 0.7 * b, oy + 0.62 * b
 
 
-def arc(k, p0, p1, t0, t1, upto=1.0, bow=0.12):
-    mx, my = (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2
-    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
-    ctrl = (mx - bow * dy, my + bow * dx)
-    us = np.linspace(0, 1, 26)
-    for u in us:
-        a = (1 - u) ** 2 * p0[0] + 2 * (1 - u) * u * ctrl[0] + u ** 2 * p1[0]
-        b = (1 - u) ** 2 * p0[1] + 2 * (1 - u) * u * ctrl[1] + u ** 2 * p1[1]
-        if u > upto:
-            continue
-        for _ in range(3):
-            aa = min(max(a + rs.normal(0, 0.018), 0.03), 0.97)
-            bb = min(max(b + rs.normal(0, 0.05), 0.05), 0.95)
-            x, y = Pk(k, aa, bb)
-            ax.plot([x], [y], ".", ms=3.0, color=STAGE(0.2 + 0.75 * (t0 + u * (t1 - t0))), zorder=10 - k)
-    return Pk(k, *p1)
-
-
-TIPS = []
+CENT = []
 for k, (lab, key, col) in enumerate(SPECIES):
     ax.add_patch(Polygon([Pk(k, 0, 0), Pk(k, 1, 0), Pk(k, 1, 1), Pk(k, 0, 1)], closed=True,
                          fc="#FAFAFB", ec=col, lw=1.1, alpha=0.95, zorder=9 - k))
-    human = key == "human"
-    fork = arc(k, (0.06, 0.45), (0.42, 0.5), 0.0, 0.42)
-    up = arc(k, (0.42, 0.5), (0.95, 0.85), 0.42, 1.0, upto=0.45 if human else 1.0)
-    dn = arc(k, (0.42, 0.5), (0.95, 0.18), 0.42, 1.0, upto=0.45 if human else 1.0, bow=-0.12)
-    if human:
-        for p in (up, dn):
-            ax.add_patch(Ellipse(p, 0.42, 0.16, fc="none", ec=col, lw=1.1, ls=(0, (1.5, 1.5)), zorder=11))
-    TIPS.append((fork, up, dn))
-# corresponding states linked from plane to plane
-for (fa, ua, da), (fb, ub, db) in zip(TIPS, TIPS[1:]):
-    for p, q in ((fa, fb), (ua, ub), (da, db)):
-        ax.plot([p[0], q[0]], [p[1], q[1]], color="#7FA6D6", lw=0.9, ls=(0, (3, 2)), zorder=1)
+    cents = {}
+    for j, (sname, sc, ca, cb) in enumerate(STATES):
+        ca2, cb2 = ca + rs.normal(0, 0.025), cb + rs.normal(0, 0.04)
+        cents[j] = Pk(k, ca2, cb2)
+        if key == "human" and j >= 3:                                   # not sampled in human
+            ax.add_patch(Ellipse(cents[j], 0.5, 0.2, fc="none", ec=sc, lw=1.2, ls=(0, (1.5, 1.5)), zorder=11))
+            continue
+        n = 28
+        aa = np.clip(ca2 + rs.normal(0, 0.035, n), 0.03, 0.97)
+        bb = np.clip(cb2 + rs.normal(0, 0.09, n), 0.06, 0.94)
+        pts = np.array([Pk(k, u, v) for u, v in zip(aa, bb)])
+        ax.scatter(pts[:, 0], pts[:, 1], s=8, color=sc, edgecolors="none", zorder=10 - k)
+    CENT.append(cents)
+for ca, cb in zip(CENT, CENT[1:]):
+    for j in range(len(STATES)):
+        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color="#9FB6D6", lw=0.9, ls=(0, (3, 2)), zorder=1)
 text(ax, 8.9, 4.38, "Cell states, aligned across species", fontsize=12, color=INK)
-for i in range(6):
-    ax.add_patch(Rectangle((7.2 + i * 0.2, 0.14), 0.19, 0.11, fc=STAGE(0.2 + 0.75 * i / 5), ec="none"))
-text(ax, 7.1, 0.2, "Stage", fontsize=10, ha="right")
-text(ax, 8.55, 0.2, "early to late", fontsize=9.5, ha="left")
+for j, (sname, sc, _, _) in enumerate(STATES):
+    ax.scatter([6.75 + j * 1.0], [0.2], s=26, color=sc, edgecolors="none")
+    text(ax, 6.85 + j * 1.0, 0.2, sname, fontsize=9.5, ha="left")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
