@@ -150,43 +150,20 @@ for k, (c, lab) in enumerate(((INK, "Unedited"), (DROPOUT, "Dropout"), (TEAL, "E
 save(fig, "lineage.png")
 
 # =============================== 2. fate ===============================
-# A small spatial branching process, in the manner of the research statement's simulations: cells
-# live at continuous positions inside an organic tissue outline, divide after gamma-distributed
-# waiting times, and scatter their daughters a little less each generation, so clones stay coherent
-# while they intermix at their edges. At the end each cell reads its fate from a signal gradient
-# plus a bias it inherited from its founder. The tissue is drawn as a Voronoi tiling of the cells.
+# A growing tissue in physical units (cell diameter 1). Every generation each cell divides, its
+# daughter is placed beside it along a slightly preferred axis, and overlapping cells push apart, so
+# the tissue expands and each clone stays a coherent, ragged patch. Each cell is drawn as its Voronoi
+# tile cut to a disk around the cell, which gives the scalloped edge of a real epithelium, with a
+# nucleus. The signal is a gradient along the long axis; at the end each cell reads its fate from the
+# signal it sits in, plus a bias inherited from the founder of its clone.
 from scipy.spatial import Voronoi
 from matplotlib.patches import Polygon as Poly, Ellipse
 import matplotlib.image as mpimg
-
-
-def rad_of(th):
-    return (1 + 0.10 * np.sin(2 * th + 0.5) + 0.07 * np.cos(3 * th) + 0.045 * np.sin(5 * th + 1.0)
-            - 0.03 * np.cos(4 * th))
-
-
-def inside(p):
-    th = np.arctan2(p[1] - 0.5, p[0] - 0.5)
-    return np.hypot((p[0] - 0.5) / 0.47, (p[1] - 0.5) / 0.45) <= 0.94 * rad_of(th)
-
-
-def clip_in(p):
-    c = np.array([0.5, 0.5])
-    p = np.array(p, float)
-    while not inside(p):
-        p = c + 0.93 * (p - c)
-    return p
-
+from shapely.geometry import Point, Polygon as SPoly
+from shapely.ops import unary_union
 
 rs = np.random.default_rng(21)
-# a growing tissue in physical units (cell diameter 1): each generation every cell divides, the
-# daughter is placed beside its mother, and overlapping cells push each other apart, so the tissue
-# expands and each clone stays a coherent, ragged patch
 GENS, CLONE_GEN, EARLY_GEN = 9, 3, 6
-pos = np.zeros((1, 2))
-clone = np.array([-1])
-bias = np.zeros(1)
-snap = {}
 
 
 def relax(p, iters=30):
@@ -198,82 +175,96 @@ def relax(p, iters=30):
     return p
 
 
+pos = np.zeros((1, 2))
+clone = np.array([-1])
+bias = np.zeros(1)
+snap = {}
 for g in range(1, GENS + 1):
-    ang = rs.uniform(0, 2 * np.pi, len(pos))
-    off = 0.5 * np.c_[np.cos(ang), np.sin(ang)]
+    ang = rs.normal(0, 0.38, len(pos)) + np.where(rs.random(len(pos)) < 0.5, 0, np.pi)   # mostly along x
+    off = 0.5 * np.c_[np.cos(ang), 0.7 * np.sin(ang)]
     pos = np.vstack([pos - off, pos + off])
     clone = np.concatenate([clone, clone])
     bias = np.concatenate([bias, bias])
     if g == CLONE_GEN:                                   # label the founders of the clones we follow
         clone = np.arange(len(pos))
-        bias = rs.normal(0, 0.09, len(pos))
+        bias = rs.normal(0, 0.07, len(pos))
     pos = relax(pos + rs.normal(0, 0.08, pos.shape))
     if g == EARLY_GEN:
         snap = dict(pos=pos.copy(), clone=clone.copy())
-R_FINAL = np.max(np.hypot(*pos.T))
+
+XMIN, XMAX = pos[:, 0].min(), pos[:, 0].max()
 
 
-def to_tissue(p):
-    """Map physical positions into the unit tissue frame, warped to the organic outline; the
-    scale is fixed by the final tissue, so an earlier snapshot is drawn smaller."""
-    th = np.arctan2(p[:, 1], p[:, 0])
-    rr = np.hypot(*p.T) / R_FINAL
-    warp = 0.94 * rad_of(th) * 0.97
-    return np.c_[0.5 + 0.47 * warp * rr * np.cos(th), 0.5 + 0.45 * warp * rr * np.sin(th)]
+def signal_of(p):
+    return np.clip((p[:, 0] - XMIN) / (XMAX - XMIN), 0, 1)
 
 
-P = to_tissue(pos)
-mid = to_tissue(snap["pos"])
-mid_clone = snap["clone"]
-R_EARLY = np.max(np.hypot(*snap["pos"].T)) / R_FINAL
-final = [dict(clone=int(c), fate=int(np.digitize(p[0] + b + rs.normal(0, 0.05), [0.40, 0.64])))
-         for p, c, b in zip(P, clone, bias)]
-alive_mid = [dict(clone=int(c)) for c in mid_clone]
+fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
 
-CLONE_COLS = [TEAL, ORANGE, PURPLE, MAGENTA, BROWN, BLUE, "#66A61E", "#E6AB02"]
-FATE_COLS = ["#F2C14E", "#5AA9A0", "#3D2C6B"]
+CLONE_COLS = ["#8DD3C7", "#FDB462", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9C27A"]
+FATE_COLS = ["#F2C14E", "#3FA7A0", "#3D2C6B"]
+SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F7F4FB", "#9E9AC8", "#3F007D"])
 
 
-def tissue(ax, x0, y0, w, h, pts, colors, title, scale=1.0):
-    th = np.linspace(0, 2 * np.pi, 300)
-    r = 0.94 * rad_of(th) * scale
-    outline = np.c_[x0 + w * (0.5 + 0.47 * r * np.cos(th)), y0 + h * (0.5 + 0.45 * r * np.sin(th))]
-    clip = Poly(outline, closed=True, fc="none", ec="none")
-    ax.add_patch(clip)
-    xy = np.c_[x0 + w * pts[:, 0], y0 + h * pts[:, 1]]
-    far = np.array([[x0 - 5, y0 - 5], [x0 + w + 5, y0 - 5], [x0 - 5, y0 + h + 5], [x0 + w + 5, y0 + h + 5]])
+def tissue(ax, cx, cy, scale, p, colors):
+    """Cells as Voronoi tiles cut to a disk around each cell; returns the tissue polygon."""
+    xy = np.c_[cx + scale * p[:, 0], cy + scale * p[:, 1]]
+    lo, hi = xy.min(0) - 10, xy.max(0) + 10
+    far = np.array([[lo[0], lo[1]], [hi[0], lo[1]], [lo[0], hi[1]], [hi[0], hi[1]]])
     vor = Voronoi(np.vstack([xy, far]))
+    shapes = []
     for i in range(len(xy)):
         reg = vor.regions[vor.point_region[i]]
         if -1 in reg or not reg:
             continue
-        tile = Poly(vor.vertices[reg], closed=True, fc=colors[i], ec="white", lw=0.9, zorder=3)
-        ax.add_patch(tile)
-        tile.set_clip_path(clip)
-    ax.add_patch(Poly(outline, closed=True, fc="none", ec=MUTED, lw=1.1, zorder=4))
-    text(ax, x0 + w / 2, y0 + h + 0.12, title, fontsize=12, color=INK)
+        cell = SPoly(vor.vertices[reg]).intersection(Point(xy[i]).buffer(0.62 * scale, 24))
+        if cell.is_empty:
+            continue
+        shapes.append(cell)
+        ax.add_patch(Poly(np.array(cell.exterior.coords), closed=True, fc=colors[i], ec="white", lw=0.7, zorder=3))
+        c = cell.centroid
+        ax.add_patch(Ellipse((c.x, c.y), 0.34 * scale, 0.28 * scale, angle=rs.uniform(0, 180),
+                             fc="#2B2530", ec="none", alpha=0.55, zorder=4))
+    body = unary_union([c.buffer(0.08 * scale) for c in shapes]).buffer(-0.06 * scale)   # close the gaps between cells
+    for g in getattr(body, "geoms", [body]):
+        ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="none", ec=MUTED, lw=1.0, zorder=5))
+    return body
 
 
 fig, ax = canvas()
-mid_cols = [CLONE_COLS[c["clone"] % 8] for c in alive_mid]
-tissue(ax, 0.35, 0.55, 3.5, 2.7, mid, mid_cols, "Clones, early", scale=R_EARLY * 1.04)
-ax.add_patch(FancyArrowPatch((3.85, 1.83), (4.3, 1.83), arrowstyle="-|>", mutation_scale=13, color=MUTED, lw=1.3))
-tissue(ax, 4.45, 0.55, 3.5, 2.7, P, [CLONE_COLS[c["clone"] % 8] for c in final], "Clones, later")
-tissue(ax, 8.25, 0.55, 3.5, 2.7, P, [FATE_COLS[c["fate"]] for c in final], "Fates")
-grad = np.linspace(0, 1, 300).reshape(1, -1)
-ax.imshow(grad, extent=(8.45, 11.55, 0.3, 0.44), aspect="auto",
-          cmap=matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#FFFFFF", "#9E9AC8", "#3F007D"]))
-text(ax, 8.45, 0.14, "Low signal", fontsize=10.5, ha="left")
-text(ax, 11.55, 0.14, "High signal", fontsize=10.5, ha="right")
+# early: two small tissues, clones and the signal they sit in
+early, eclone = snap["pos"], snap["clone"]
+# one scale for both stages, set so the grown tissue fills its panel; the early tissue is true to size
+SC = min(3.3 / np.ptp(pos[:, 0]), 2.45 / np.ptp(pos[:, 1]))
+tissue(ax, 1.15, 1.9, SC, early, [CLONE_COLS[c % 8] for c in eclone])
+tissue(ax, 3.2, 1.9, SC, early, [SIG_CMAP(v) for v in signal_of(early)])
+# late: the grown tissue, clones and the fate each cell took
+tissue(ax, 6.45, 1.9, SC, pos, [CLONE_COLS[c % 8] for c in clone])
+tissue(ax, 10.05, 1.9, SC, pos, [FATE_COLS[f] for f in fate])
+ax.add_patch(FancyArrowPatch((4.2, 1.9), (4.7, 1.9), arrowstyle="-|>", mutation_scale=14, color=MUTED, lw=1.4))
+# group labels on top, panel labels underneath, so the two never read as one
+for x0, x1, lab in ((0.3, 4.05, "Early"), (4.85, 11.85, "Late")):
+    ax.plot([x0, x1], [3.32, 3.32], color=GREY, lw=1.0)
+    text(ax, (x0 + x1) / 2, 3.47, lab, fontsize=12.5, color=INK, fontweight="bold",
+         bbox=dict(boxstyle="square,pad=0.2", fc="white", ec="none"))
+for x, lab in ((1.15, "Clones"), (3.2, "Signal"), (6.45, "Clones"), (10.05, "Fates")):
+    text(ax, x, 0.28, lab, fontsize=11.5, color=MUTED)
+# fate key
+for k, (c, lab) in enumerate(zip(FATE_COLS, ("Fate 1", "Fate 2", "Fate 3"))):
+    ax.add_patch(Rectangle((8.95 + k * 0.85, 0.02), 0.16, 0.12, fc=c, ec="none"))
+    text(ax, 9.16 + k * 0.85, 0.08, lab, fontsize=9.5, ha="left")
 save(fig, "fate.png")
 
 # =============================== 3. transfer ===============================
-# Left half: a phylogeny with a silhouette per species, a functional genomics signal track for the
-# same syntenic region in each, orthologous genes marked, and each organism's proposal onto human.
-# Right half: the cell states of the same four species, aligned row to row. Human is sampled only
-# to an earlier stage, so its later states are outlines.
+# Left: a phylogeny with a silhouette per species; for each, a functional genomics signal track over
+# the same region, orthologous genes marked, and the region's synteny drawn as conserved blocks along
+# the genome (their order and orientation differ between species); each model organism's proposal
+# points onto the human track.
+# Right: the cell states of the same species as a stack of embedding planes, as in the research
+# statement: a branching trajectory in each, corresponding states linked, and human sampled only to
+# an earlier stage, so its later states are outlines.
 SIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "silhouettes")
-W3, H3 = 12.0, 4.3
+W3, H3 = 12.0, 4.6
 fig = plt.figure(figsize=(W3, H3), dpi=DPI)
 ax = fig.add_axes([0, 0, 1, 1])
 ax.set_xlim(0, W3)
@@ -282,7 +273,7 @@ ax.set_aspect("equal")
 ax.axis("off")
 rs = np.random.default_rng(12)
 SPECIES = [("Zebrafish", "zebrafish", BLUE), ("Mouse", "mouse", ORANGE), ("Macaque", "macaque", PURPLE), ("Human", "human", TEAL)]
-ROW = [3.25, 2.4, 1.55, 0.7]                    # track baselines, human at the bottom
+ROW = [3.45, 2.52, 1.59, 0.66]                   # track baselines, human at the bottom
 
 
 def hline(x0, x1, y):
@@ -293,7 +284,6 @@ def vline(x, y0, y1):
     ax.plot([x, x], [y0, y1], color=INK, lw=1.5, solid_capstyle="round")
 
 
-# phylogeny, root on the left: ((macaque, human), mouse), zebrafish
 mid = [y + 0.3 for y in ROW]
 n3 = (mid[2] + mid[3]) / 2
 n2 = (mid[1] + n3) / 2
@@ -321,15 +311,22 @@ def silhouette(name, x, y, hmax, wmax, color):
 
 
 for (lab, key, col), y in zip(SPECIES, ROW):
-    silhouette(key, 1.35, y + 0.36, 0.58, 0.7, col)
-    text(ax, 1.35, y - 0.1, lab, fontsize=10.5, color=col, fontweight="bold")
+    silhouette(key, 1.35, y + 0.4, 0.55, 0.7, col)
+    text(ax, 1.35, y + 0.02, lab, fontsize=10.5, color=col, fontweight="bold")
 
-# signal tracks, generated from peaks placed per species; element positions drift between species
-TX0, TX1 = 1.95, 6.15
-xs = np.linspace(TX0, TX1, 600)
-ELEM = {"zebrafish": [2.85, 3.85, 4.9], "mouse": [3.0, 4.05, 5.05], "macaque": [3.1, 4.15, 5.12], "human": [3.12, 4.17, 5.14]}
-GA = {"zebrafish": 2.05, "mouse": 2.1, "macaque": 2.15, "human": 2.15}     # gene A, left flank
-GB = {"zebrafish": 5.5, "mouse": 5.6, "macaque": 5.65, "human": 5.67}      # gene B, right flank
+TX0, TX1 = 1.95, 6.05
+xs = np.linspace(TX0, TX1, 700)
+# element positions per species; the region is longer in mouse and shorter in zebrafish, and the
+# middle block is inverted in zebrafish, so the elements do not line up column by column
+ELEM = {"zebrafish": [2.95, 4.45, 5.0], "mouse": [2.85, 3.95, 5.1], "macaque": [3.0, 4.05, 5.05], "human": [3.02, 4.08, 5.07]}
+GA = {"zebrafish": 2.05, "mouse": 2.02, "macaque": 2.08, "human": 2.08}
+GB = {"zebrafish": 5.45, "mouse": 5.6, "macaque": 5.55, "human": 5.57}
+BLOCKS = {  # (start, end, color, strand) along the genome axis, in the order they occur
+    "zebrafish": [(2.45, 3.35, "#C9B8E6", 1), (3.45, 4.75, "#F6C9A0", -1), (4.8, 5.35, "#B8D8C8", 1)],
+    "mouse": [(2.45, 3.4, "#C9B8E6", 1), (3.5, 4.55, "#F6C9A0", 1), (4.65, 5.45, "#B8D8C8", 1)],
+    "macaque": [(2.5, 3.45, "#C9B8E6", 1), (3.55, 4.55, "#F6C9A0", 1), (4.62, 5.4, "#B8D8C8", 1)],
+    "human": [(2.5, 3.45, "#C9B8E6", 1), (3.55, 4.57, "#F6C9A0", 1), (4.63, 5.42, "#B8D8C8", 1)],
+}
 
 
 def gene(x, y, color, label=None):
@@ -340,81 +337,83 @@ def gene(x, y, color, label=None):
 
 
 for (lab, key, col), y in zip(SPECIES, ROW):
+    # the synteny blocks, drawn as a band just under the track with their orientation
+    for s0, s1, bc, strand in BLOCKS[key]:
+        ax.add_patch(Rectangle((s0, y - 0.2), s1 - s0, 0.1, fc=bc, ec="none", zorder=2))
+        ax.add_patch(FancyArrowPatch((s0 + 0.08, y - 0.15) if strand > 0 else (s1 - 0.08, y - 0.15),
+                                     (s1 - 0.08, y - 0.15) if strand > 0 else (s0 + 0.08, y - 0.15),
+                                     arrowstyle="-|>", mutation_scale=6, color=MUTED, lw=0.7, zorder=3))
     sig = 0.03 * rs.random(xs.size)
     for k, e in enumerate(ELEM[key]):
-        h = 0.52 if not (key == "human" and k == 0) else 0.08          # element 1 is silent in human
-        sig += h * np.exp(-((xs - e) ** 2) / (2 * 0.05 ** 2))
-    for e in rs.uniform(TX0 + 0.5, TX1 - 0.7, 3):                        # species-specific peaks
-        sig += 0.16 * np.exp(-((xs - e) ** 2) / (2 * 0.035 ** 2))
+        h = 0.5 if not (key == "human" and k == 0) else 0.07           # element 1 is silent in human
+        sig += h * np.exp(-((xs - e) ** 2) / (2 * 0.045 ** 2))
+    for e in rs.uniform(TX0 + 0.5, TX1 - 0.8, 3):                       # species-specific peaks
+        sig += 0.15 * np.exp(-((xs - e) ** 2) / (2 * 0.03 ** 2))
     ax.fill_between(xs, y, y + sig, color=col, alpha=0.9, lw=0, zorder=3)
     ax.plot([TX0, TX1], [y, y], color=GREY, lw=1, zorder=2)
     top = key == "zebrafish"
     gene(GA[key], y, INK, "Gene A" if top else None)
     gene(GB[key], y, INK, "Gene B" if top else None)
-# orthologous genes joined across species, syntenic regions shaded between neighbouring tracks
+# orthologous genes joined across species
 for (_, a, _), (_, b, _), ya, yb in zip(SPECIES, SPECIES[1:], ROW, ROW[1:]):
     for g in (GA, GB):
-        ax.plot([g[a] + 0.17, g[b] + 0.17], [ya - 0.08, yb + 0.08], color=MUTED, lw=1.0, ls=(0, (2, 2)), zorder=2)
-    for k in range(3):
-        xa, xb = ELEM[a][k], ELEM[b][k]
-        ax.add_patch(Polygon([(xa - 0.17, ya - 0.01), (xa + 0.17, ya - 0.01), (xb + 0.17, yb + 0.54), (xb - 0.17, yb + 0.54)],
-                             closed=True, fc="#DAD5E0", ec="none", alpha=0.85, zorder=1))
-text(ax, (GA["human"] + GB["human"]) / 2 + 0.17, ROW[3] - 0.25, "Orthologous genes joined, syntenic regions shaded",
-     fontsize=9.5, color=MUTED)
-# each model organism's proposal for element 2, onto the human track
+        ax.plot([g[a] + 0.17, g[b] + 0.17], [ya - 0.22, yb + 0.1], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
+# each model organism's proposal for the element in the second block, onto the human track
 for (lab, key, col), y in zip(SPECIES[:3], ROW[:3]):
-    ax.add_patch(FancyArrowPatch((ELEM[key][1] + 0.12, y + 0.28), (ELEM["human"][1] + 0.1, ROW[3] + 0.5),
+    ax.add_patch(FancyArrowPatch((ELEM[key][1] + 0.1, y + 0.3), (ELEM["human"][1] + 0.08, ROW[3] + 0.5),
                                  connectionstyle="arc3,rad=-0.3", arrowstyle="-|>", mutation_scale=11,
                                  color=col, lw=1.4, zorder=6))
-text(ax, (TX0 + TX1) / 2, 4.08, "Regulatory elements", fontsize=12, color=INK)
+text(ax, (TX0 + TX1) / 2, 4.38, "Regulatory elements", fontsize=12, color=INK)
+text(ax, 4.0, 0.2, "Synteny blocks shown under each track, with orientation", fontsize=9.5, color=MUTED)
 
-# right half: cell states, one small branching trajectory per species, aligned across species
-CX0 = 6.75
-CT = {"prog": "#8C8C8C", "a": "#E6AB02", "b": "#E7298A"}
-
-
-def mix(c0, c1, f):
-    a0, a1 = np.array(matplotlib.colors.to_rgb(c0)), np.array(matplotlib.colors.to_rgb(c1))
-    return a0 + (a1 - a0) * f
+# ---------------- right: a stack of embedding planes, one per species ----------------
+STAGE = plt.cm.YlGnBu
 
 
-def branch_pts(ox, oy, human):
-    """A cloud of cells along a stem that forks in two, colored from progenitor into each fate.
-    Returns anchor points for the alignment lines."""
-    anchors = {}
-    n = 70
-    t = np.sort(rs.random(n))
-    pts = np.c_[ox + 1.6 * t, oy + rs.normal(0, 0.05, n)]
-    ax.scatter(pts[:, 0], pts[:, 1], s=9, color=CT["prog"], edgecolors="none", alpha=0.9, zorder=4)
-    anchors["fork"] = np.array([ox + 1.6, oy])
-    for tag, sgn in (("a", 1), ("b", -1)):
-        u = np.sort(rs.random(90))
-        if human:
-            u = u[u < 0.42]                                         # later states not yet sampled
-        spread = 0.04 + 0.03 * u
-        px = ox + 1.6 + 2.9 * u
-        py = oy + sgn * 0.32 * (3 * u ** 2 - 2 * u ** 3) + rs.normal(0, 1, u.size) * spread
-        cols = [mix(CT["prog"], CT[tag], min(1, 0.25 + 1.3 * v)) for v in u]
-        ax.scatter(px, py, s=9, c=cols, edgecolors="none", alpha=0.9, zorder=4)
-        end = np.array([ox + 4.5, oy + sgn * 0.32])
-        if human:
-            uu = np.linspace(0.42, 1, 30)
-            ax.plot(ox + 1.6 + 2.9 * uu, oy + sgn * 0.32 * (3 * uu ** 2 - 2 * uu ** 3), color=GREY, lw=1.1,
-                    ls=(0, (2, 2)), zorder=2)
-            ax.add_patch(Ellipse(end, 0.6, 0.22, fc="none", ec=CT[tag], lw=1.2, ls=(0, (2, 1.5)), zorder=3))
-        anchors[tag] = end
-        anchors[tag + "_mid"] = np.array([ox + 1.6 + 2.9 * 0.4, oy + sgn * 0.32 * (3 * 0.16 - 2 * 0.064)])
-    return anchors
+def Pk(k, a, b):
+    ox, oy = 6.55 + 0.34 * k, ROW[k] - 0.08
+    return ox + 3.5 * a + 0.7 * b, oy + 0.62 * b
 
 
-ANCH = [branch_pts(CX0, y + 0.3, key == "human") for (lab, key, col), y in zip(SPECIES, ROW)]
-for ta, tb in zip(ANCH, ANCH[1:]):
-    for k in ("fork", "a_mid", "b_mid", "a", "b"):
-        ax.plot([ta[k][0], tb[k][0]], [ta[k][1], tb[k][1]], color="#7FA6D6", lw=0.9, ls=(0, (3, 2)), zorder=1)
-text(ax, CX0 + 2.25, 4.08, "Cell states, aligned across species", fontsize=12, color=INK)
-for k, (tag, lab) in enumerate((("prog", "Progenitor"), ("a", "Fate A"), ("b", "Fate B"))):
-    ax.scatter([CX0 + 0.1 + k * 1.55], [0.12], s=30, color=CT[tag], edgecolors="none")
-    text(ax, CX0 + 0.22 + k * 1.55, 0.12, lab, fontsize=10, ha="left")
+def arc(k, p0, p1, t0, t1, upto=1.0, bow=0.12):
+    mx, my = (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    ctrl = (mx - bow * dy, my + bow * dx)
+    us = np.linspace(0, 1, 26)
+    for u in us:
+        a = (1 - u) ** 2 * p0[0] + 2 * (1 - u) * u * ctrl[0] + u ** 2 * p1[0]
+        b = (1 - u) ** 2 * p0[1] + 2 * (1 - u) * u * ctrl[1] + u ** 2 * p1[1]
+        if u > upto:
+            continue
+        for _ in range(3):
+            aa = min(max(a + rs.normal(0, 0.018), 0.03), 0.97)
+            bb = min(max(b + rs.normal(0, 0.05), 0.05), 0.95)
+            x, y = Pk(k, aa, bb)
+            ax.plot([x], [y], ".", ms=3.0, color=STAGE(0.2 + 0.75 * (t0 + u * (t1 - t0))), zorder=10 - k)
+    return Pk(k, *p1)
+
+
+TIPS = []
+for k, (lab, key, col) in enumerate(SPECIES):
+    ax.add_patch(Polygon([Pk(k, 0, 0), Pk(k, 1, 0), Pk(k, 1, 1), Pk(k, 0, 1)], closed=True,
+                         fc="#FAFAFB", ec=col, lw=1.1, alpha=0.95, zorder=9 - k))
+    human = key == "human"
+    fork = arc(k, (0.06, 0.45), (0.42, 0.5), 0.0, 0.42)
+    up = arc(k, (0.42, 0.5), (0.95, 0.85), 0.42, 1.0, upto=0.45 if human else 1.0)
+    dn = arc(k, (0.42, 0.5), (0.95, 0.18), 0.42, 1.0, upto=0.45 if human else 1.0, bow=-0.12)
+    if human:
+        for p in (up, dn):
+            ax.add_patch(Ellipse(p, 0.42, 0.16, fc="none", ec=col, lw=1.1, ls=(0, (1.5, 1.5)), zorder=11))
+    TIPS.append((fork, up, dn))
+# corresponding states linked from plane to plane
+for (fa, ua, da), (fb, ub, db) in zip(TIPS, TIPS[1:]):
+    for p, q in ((fa, fb), (ua, ub), (da, db)):
+        ax.plot([p[0], q[0]], [p[1], q[1]], color="#7FA6D6", lw=0.9, ls=(0, (3, 2)), zorder=1)
+text(ax, 8.9, 4.38, "Cell states, aligned across species", fontsize=12, color=INK)
+for i in range(6):
+    ax.add_patch(Rectangle((7.2 + i * 0.2, 0.14), 0.19, 0.11, fc=STAGE(0.2 + 0.75 * i / 5), ec="none"))
+text(ax, 7.1, 0.2, "Stage", fontsize=10, ha="right")
+text(ax, 8.55, 0.2, "early to late", fontsize=9.5, ha="left")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
