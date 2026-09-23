@@ -92,8 +92,7 @@ def text(ax, x, y, s, **kw):
 
 
 # =============================== 1. lineage ===============================
-# Left: how an edit is written. Cas9, guided by its RNA, cuts a recorder integration and the repair
-# leaves a heritable edit. Middle: a lineage tree drawn with a cell at every division and every sampled
+# Left: a lineage tree drawn with a cell at every division and every sampled
 # tip, division times varying and the tree unbalanced, as a real one is. Each cell carries the same
 # integrations in its nucleus; each division writes a new edit into one integration of a daughter
 # (ringed), so the edits accumulate down the tree. Right: the sampled cells are sequenced, and their
@@ -105,42 +104,17 @@ UNEDITED = "#2B2F36"
 NEW = ACCENT
 TIPY = 0.6
 
-# ---------------- CRISPR writing an edit ----------------
-def dna(x0, x1, y, target_col, target_x):
-    ax.plot([x0, x1], [y + 0.05, y + 0.05], color=MUTED, lw=2.2, solid_capstyle="round", zorder=2)
-    ax.plot([x0, x1], [y - 0.05, y - 0.05], color=MUTED, lw=2.2, solid_capstyle="round", zorder=2)
-    for xx in np.arange(x0 + 0.06, x1, 0.09):
-        ax.plot([xx, xx], [y - 0.05, y + 0.05], color=GREY, lw=0.8, zorder=1)
-    ax.add_patch(Rectangle((target_x - 0.16, y - 0.09), 0.32, 0.18, fc=target_col, ec="none", zorder=3))
-
-
-dna(0.25, 2.35, 2.55, UNEDITED, 1.3)
-text(ax, 1.3, 2.26, "Integration", fontsize=10, color=MUTED)
-# Cas9 sitting on the target, with its guide RNA
-ax.add_patch(matplotlib.patches.FancyBboxPatch((0.88, 2.66), 0.84, 0.52, boxstyle="round,pad=0.02,rounding_size=0.22",
-                                               fc="#DCD6E8", ec="#8E86A8", lw=1.1, zorder=4))
-text(ax, 1.3, 2.97, "Cas9", fontsize=10.5, color=INK)
-gx = np.linspace(1.05, 1.55, 40)
-ax.plot(gx, 2.74 + 0.05 * np.sin((gx - 1.05) * 18), color=ACCENT, lw=1.4, zorder=5)
-text(ax, 2.05, 3.22, "Guide RNA", fontsize=9.5, color=ACCENT, ha="left")
-ax.plot([1.72, 2.03], [2.8, 3.15], color=ACCENT, lw=0.8, zorder=5)
-ax.add_patch(FancyArrowPatch((1.3, 2.05), (1.3, 1.55), arrowstyle="-|>", mutation_scale=13, color=INK, lw=1.4))
-text(ax, 1.45, 1.8, "Cut and repair", fontsize=10, color=MUTED, ha="left")
-dna(0.25, 2.35, 1.2, IDENT[0], 1.3)
-ax.add_patch(Rectangle((1.3 - 0.21, 1.2 - 0.14), 0.42, 0.28, fc="none", ec=NEW, lw=1.8, zorder=4))
-text(ax, 1.3, 0.86, "Heritable edit", fontsize=10, color=INK)
-
 # ---------------- the tree ----------------
 TREE = {
-    "r": (5.95, 3.2, ["A", "B"]),
-    "A": (4.6, 2.3, ["A1", "t3"]),
-    "A1": (4.05, 1.45, ["t1", "t2"]),
-    "B": (7.4, 2.42, ["B1", "B2"]),
-    "B1": (6.56, 1.55, ["t4", "t5"]),
-    "B2": (8.21, 1.45, ["t6", "t7"]),
+    "r": (4.60, 3.2, ["A", "B"]),
+    "A": (3.25, 2.3, ["A1", "t3"]),
+    "A1": (2.70, 1.45, ["t1", "t2"]),
+    "B": (6.05, 2.42, ["B1", "B2"]),
+    "B1": (5.21, 1.55, ["t4", "t5"]),
+    "B2": (6.86, 1.45, ["t6", "t7"]),
 }
 TIPS = ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
-TIPX = dict(zip(TIPS, [3.55, 4.38, 5.25, 6.15, 6.98, 7.8, 8.62]))
+TIPX = dict(zip(TIPS, [2.2, 3.03, 3.9, 4.8, 5.63, 6.45, 7.27]))
 
 
 def cell(x, y, sites, new=None, rx=0.36, ry=0.29, seed=0):
@@ -193,10 +167,10 @@ def grow(name, sites, new, seed):
 grow("r", [None] * NSITE, None, 1)
 for i, t in enumerate(TIPS):
     text(ax, TIPX[t], TIPY - 0.42, str(i + 1), fontsize=10, color=MUTED)
-ax.add_patch(FancyArrowPatch((3.05, 3.4), (3.05, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
-text(ax, 2.87, 1.9, "Time", fontsize=10.5, rotation=90)
+ax.add_patch(FancyArrowPatch((1.7, 3.4), (1.7, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
+text(ax, 1.52, 1.9, "Time", fontsize=10.5, rotation=90)
 # the tree's key sits with the tree, in the space beside the root
-KX, KY = 3.35, 3.28
+KX, KY = 2.0, 3.28
 ax.add_patch(Rectangle((KX, KY - 0.08), 0.06, 0.16, fc=UNEDITED, ec="none"))
 text(ax, KX + 0.14, KY, "Unedited", fontsize=9.5, ha="left")
 for j, c in enumerate(ALLELES[:3]):
@@ -207,9 +181,9 @@ ax.add_patch(Rectangle((KX - 0.025, KY - 0.805), 0.11, 0.21, fc="none", ec=NEW, 
 text(ax, KX + 0.14, KY - 0.7, "Newest edit", fontsize=9.5, ha="left")
 
 # ---------------- sequencing ----------------
-ax.add_patch(FancyArrowPatch((9.05, 1.85), (9.5, 1.85), arrowstyle="-|>", mutation_scale=15, color=INK, lw=1.5))
-text(ax, 9.27, 2.13, "Sequence", fontsize=10.5, color=INK)
-MX, MY, cw, ch = 9.95, 2.95, 0.3, 0.29
+ax.add_patch(FancyArrowPatch((8.05, 1.85), (8.65, 1.85), arrowstyle="-|>", mutation_scale=15, color=INK, lw=1.5))
+text(ax, 8.35, 2.13, "Sequence", fontsize=10.5, color=INK)
+MX, MY, cw, ch = 9.15, 2.95, 0.3, 0.29
 for i, t in enumerate(TIPS):
     y = MY - i * (ch + 0.06)
     text(ax, MX - 0.17, y + ch / 2, str(i + 1), fontsize=10, color=MUTED)
@@ -288,14 +262,13 @@ fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 
 
 CLONE_COLS = CLONE_SET
 FATE_COLS = IDENT_M[:3]                            # the same colors as States 1 to 3 in the transfer figure
-# the signal has a scale of its own, pale gold to deep plum, shared with no other meaning
-SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#FFF4C7", "#F2B35E", "#C8505F", "#5A1E5C"])
+# the signal is a single slate ramp, from near white to near black, so its magnitude reads at a glance
+SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F7F8FA", "#B4BDCB", "#5E6B82", "#18202E"])
 
 
 def tissue(ax, cx, cy, scale, p, colors):
-    """Flat 2D cells: each cell's Voronoi tile, cut to a disk around it and shrunk with rounded
-    corners so neighbours are separated by a thin gap, with a flat nucleus; the tissue behind them
-    follows the outer cells."""
+    """Flat 2D cells without walls: each cell's Voronoi tile, cut to a disk around it, touches its
+    neighbours, and a flat nucleus marks each cell; the tissue behind them follows the outer cells."""
     xy = np.c_[cx + scale * p[:, 0], cy + scale * p[:, 1]]
     lo, hi = xy.min(0) - 10, xy.max(0) + 10
     far = np.array([[lo[0], lo[1]], [hi[0], lo[1]], [lo[0], hi[1]], [hi[0], hi[1]]])
@@ -311,11 +284,8 @@ def tissue(ax, cx, cy, scale, p, colors):
     for g in getattr(body, "geoms", [body]):
         ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="#F1EEEA", ec="#B5AFA7", lw=1.0, zorder=2))
     for i, c in zip(keep, cells_):
-        r = c.buffer(-0.1 * scale).buffer(0.05 * scale)          # a gap to the neighbours, rounded corners
-        if r.is_empty:
-            continue
-        for g in getattr(r, "geoms", [r]):
-            ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc=colors[i], ec="none", zorder=3))
+        for g in getattr(c, "geoms", [c]):                        # no wall: neighbours touch
+            ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc=colors[i], ec=colors[i], lw=0.4, zorder=3))
         ctr = c.centroid
         ax.add_patch(matplotlib.patches.Circle((ctr.x, ctr.y), 0.17 * scale, fc=shade(colors[i], 0.3), ec="none", zorder=4))
     return body
