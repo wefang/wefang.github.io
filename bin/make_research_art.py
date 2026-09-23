@@ -41,10 +41,24 @@ ALLELES = IDENT
 DROPOUT = "#CDD1D6"
 
 
+def mute(c, f=0.38, grey="#A7ABB2"):
+    """c pulled toward a warm grey by f, for a quieter version of the same hue."""
+    a, g = np.array(matplotlib.colors.to_rgb(c)), np.array(matplotlib.colors.to_rgb(grey))
+    return tuple(a + (g - a) * f)
+
+
+def shade(c, f=0.3):
+    """c darkened by f, for outlines and nuclei drawn in the cell's own hue."""
+    return tuple(np.array(matplotlib.colors.to_rgb(c)) * (1 - f))
+
+
 def tint(c, f=0.55):
     """c mixed toward white by f, for a lighter layer of the same hue."""
     a = np.array(matplotlib.colors.to_rgb(c))
     return tuple(a + (1 - a) * f)
+
+
+IDENT_M = [mute(c) for c in IDENT]                 # cell identities, muted: fates and cell states
 plt.rcParams["font.family"] = "DejaVu Sans"
 W, H = 12.0, 3.6
 DPI = 200
@@ -238,33 +252,23 @@ def signal_of(p):
 
 fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
 
-CLONE_COLS = [tint(c) for c in (OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE, OI_YELLOW, "#8C96A3", "#B49A7A")]
-FATE_COLS = IDENT[:3]                              # the same colors as States 1 to 3 in the transfer figure
-SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F4F6F9", "#9AA6B8", SLATE])
+CLONE_COLS = [tint(mute(c, 0.3), 0.45) for c in (OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE, OI_YELLOW, "#8C96A3", "#B49A7A")]
+FATE_COLS = IDENT_M[:3]                            # the same colors as States 1 to 3 in the transfer figure
+SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#EEF0F3", "#A9B2C0", "#56637A"])
 
 
 def tissue(ax, cx, cy, scale, p, colors):
-    """Cells as Voronoi tiles cut to a disk around each cell; returns the tissue polygon."""
+    """Cells drawn as a cartoon: soft round cells outlined in a darker shade of their own color,
+    each with a nucleus, on a light tissue shape that follows the outer cells."""
     xy = np.c_[cx + scale * p[:, 0], cy + scale * p[:, 1]]
-    lo, hi = xy.min(0) - 10, xy.max(0) + 10
-    far = np.array([[lo[0], lo[1]], [hi[0], lo[1]], [lo[0], hi[1]], [hi[0], hi[1]]])
-    vor = Voronoi(np.vstack([xy, far]))
-    shapes = []
-    for i in range(len(xy)):
-        reg = vor.regions[vor.point_region[i]]
-        if -1 in reg or not reg:
-            continue
-        cell = SPoly(vor.vertices[reg]).intersection(Point(xy[i]).buffer(0.62 * scale, 24))
-        if cell.is_empty:
-            continue
-        shapes.append(cell)
-        ax.add_patch(Poly(np.array(cell.exterior.coords), closed=True, fc=colors[i], ec="white", lw=0.7, zorder=3))
-        c = cell.centroid
-        ax.add_patch(Ellipse((c.x, c.y), 0.34 * scale, 0.28 * scale, angle=rs.uniform(0, 180),
-                             fc=INK, ec="none", alpha=0.5, zorder=4))
-    body = unary_union([c.buffer(0.08 * scale) for c in shapes]).buffer(-0.06 * scale)   # close the gaps between cells
+    body = unary_union([Point(q).buffer(0.62 * scale, 20) for q in xy]).buffer(0.12 * scale)
     for g in getattr(body, "geoms", [body]):
-        ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="none", ec=MUTED, lw=1.0, zorder=5))
+        ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="#F3F1EE", ec="#A39E97", lw=1.3, zorder=2))
+    for i in np.argsort(-xy[:, 1]):                     # back to front, so the overlaps read as depth
+        c = colors[i]
+        ax.add_patch(matplotlib.patches.Circle(xy[i], 0.53 * scale, fc=c, ec=shade(c, 0.32), lw=0.8, zorder=3))
+        ax.add_patch(matplotlib.patches.Circle(xy[i] + rs.normal(0, 0.05 * scale, 2), 0.2 * scale,
+                                               fc=shade(c, 0.28), ec="none", zorder=4))
     return body
 
 
@@ -300,11 +304,11 @@ save(fig, "fate.png")
 # Human is the reference and has every state; each model organism lacks some of them (outlined).
 # Model organisms are drawn in neutrals and human in the accent, so the figure reads human-centered.
 SIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "silhouettes")
-W3, H3 = 12.0, 4.6
-fig = plt.figure(figsize=(W3, H3), dpi=DPI)
+W3, H3, Y3 = 12.0, 4.6, 0.38                     # the bottom strip, where a legend used to be, is cut
+fig = plt.figure(figsize=(W3, H3 - Y3), dpi=DPI)
 ax = fig.add_axes([0, 0, 1, 1])
 ax.set_xlim(0, W3)
-ax.set_ylim(0, H3)
+ax.set_ylim(Y3, H3)
 ax.set_aspect("equal")
 ax.axis("off")
 rs = np.random.default_rng(12)
@@ -415,7 +419,7 @@ for k, j in zip(range(3), (2, 1, 0)):
 text(ax, 3.9, 4.42, "Regulatory elements", fontsize=12, color=INK)
 
 # ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
-STATES = [("State %d" % (j + 1), IDENT[j], ca, cb) for j, (ca, cb) in
+STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
           enumerate(((0.13, 0.5), (0.38, 0.28), (0.38, 0.72), (0.72, 0.25), (0.78, 0.72)))]
 MISSING = {"zebrafish": {2, 4}, "mouse": {4}, "macaque": {3}, "human": set()}
 CENT = []
@@ -438,9 +442,6 @@ for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
         ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=GREY, lw=0.9, ls=(0, (3, 2)), zorder=1)
 text(ax, 8.95, 4.42, "Cell states, aligned to human", fontsize=12, color=INK)
-for j, (sname, sc, _, _) in enumerate(STATES):
-    ax.scatter([6.75 + j * 1.0], [0.18], s=26, color=sc, edgecolors="none")
-    text(ax, 6.85 + j * 1.0, 0.18, sname, fontsize=9.5, ha="left")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))

@@ -24,7 +24,7 @@ latest_posts:
 
 I develop **statistical and machine learning methods** for data produced by emerging genomics technologies, beginning with **genomic records**, the edits an engineered recorder writes into a cell's own DNA. I use them to infer **the dynamics of cell fate determination**, and to **transfer what a model organism reveals** about the regulatory control of fate **into human**.
 
-I am a postdoctoral fellow in the [Kalhor Lab](https://kalhorlab.bme.jhu.edu) at Johns Hopkins, where lineage recording technologies are built. I received my **PhD in Biostatistics** from the Johns Hopkins Bloomberg School of Public Health, working with [Hongkai Ji](https://jilab.org).
+I am a postdoctoral fellow in the [Kalhor Lab](https://kalhorlab.bme.jhu.edu) at Johns Hopkins, where lineage recording technologies are built, and I have **hands-on wet lab experience** there, from mouse embryo microdissection and cell sorting to sequencing library preparation, so I know how the data I model are made. I received my **PhD in Biostatistics** from the Johns Hopkins Bloomberg School of Public Health, working with [Hongkai Ji](https://jilab.org).
 
 ### Research Areas
 
