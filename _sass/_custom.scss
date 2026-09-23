@@ -42,8 +42,8 @@ html[data-theme="dark"] {
 body {
   font-family: var(--site-font);
   font-weight: 400;
-  font-size: 1.02rem;
-  line-height: 1.65;
+  font-size: 1rem;
+  line-height: 1.58;
   color: var(--global-text-color);
   background: var(--global-bg-color);
 }
@@ -121,13 +121,18 @@ header.post-header h1 .font-weight-bold {
 /* section headings on the about page ("selected publications", "Research program") */
 .post h2 a {
   text-decoration: none;
+  text-transform: capitalize;
+}
+.post p {
+  margin-bottom: 0.7rem;
 }
 .post h2,
 .publications h2,
 article h3 {
-  font-size: 1.35rem;
-  margin-top: 2.2rem;
-  padding-bottom: 0.35rem;
+  font-size: 1.3rem;
+  margin-top: 1.6rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--global-divider-color);
 }
 
@@ -154,52 +159,37 @@ article h3 {
   clear: both;
 }
 
-/* research program: three boxes stacked, drawing left and text right */
+/* research areas: title and text on top, the wide drawing below at full width */
 .research-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin: 1rem 0 0.5rem;
+  gap: 1.3rem;
+  margin: 0.6rem 0 0.2rem;
   clear: both;
 }
-.research-item {
-  display: grid;
-  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
-  gap: 1.4rem;
-  align-items: center;
-  border: 1px solid var(--global-divider-color);
-  border-radius: 12px;
-  padding: 1rem 1.3rem 1rem 1rem;
-  background: var(--global-card-bg-color);
+.research-item h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.15rem;
+  border: 0;
 }
-@media (max-width: 767px) {
-  .research-item {
-    grid-template-columns: 1fr;
-  }
+.research-item p {
+  font-size: 0.96rem;
+  line-height: 1.55;
+  color: var(--global-text-color-light);
+  margin: 0 0 0.45rem;
 }
 .research-item img {
   width: 100%;
-  aspect-ratio: 9 / 5;
-  object-fit: contain;
+  height: auto;
+  display: block;
   background: #ffffff;
-  border-radius: 8px;
-}
-.research-text h4 {
-  font-size: 1.08rem;
-  font-weight: 600;
-  margin: 0 0 0.4rem;
-  border: 0;
-}
-.research-text p {
-  font-size: 0.97rem;
-  line-height: 1.6;
-  color: var(--global-text-color-light);
-  margin: 0;
+  border-radius: 6px;
 }
 
 /* publications */
 .publications ol.bibliography li {
-  padding: 0.9rem 0;
+  padding: 0.6rem 0;
   border-bottom: 1px solid var(--global-divider-color);
 }
 .publications .title {
