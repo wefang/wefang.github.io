@@ -2,15 +2,13 @@
 layout: about
 title: About
 permalink: /
-subtitle: Postdoctoral Fellow, Department of Biomedical Engineering, Johns Hopkins University
+subtitle: >
+  Postdoctoral Fellow, Department of Biomedical Engineering, Johns Hopkins University<br><span class="address">855 N. Wolfe St., Rangos 570, Baltimore, MD 21205 · wfang58@gmail.com</span>
 
 profile:
   align: right
   image: prof_pic.jpg
   image_circular: true
-  more_info: >
-    <p>855 N. Wolfe St., Rangos 570</p>
-    <p>Baltimore, MD 21205</p>
 
 selected_papers: true
 social: true
@@ -24,9 +22,9 @@ latest_posts:
 
 **I am on the academic job market in 2026–27**, applying for faculty positions in biostatistics, biomedical engineering and genomics. My [CV is here](/assets/pdf/Weixiang_Fang_CV.pdf).
 
-I develop statistical and machine learning methods for data produced by emerging genomics technologies, beginning with genomic records, the edits an engineered recorder writes into a cell's own DNA. I use them to infer the dynamics of cell fate determination, and to transfer what a model organism reveals about the regulatory control of fate into human.
+I develop **statistical and machine learning methods** for data produced by emerging genomics technologies, beginning with **genomic records**, the edits an engineered recorder writes into a cell's own DNA. I use them to infer **the dynamics of cell fate determination**, and to **transfer what a model organism reveals** about the regulatory control of fate **into human**.
 
-I am a postdoctoral fellow in the [Kalhor Lab](https://kalhorlab.bme.jhu.edu) at Johns Hopkins, where lineage recording technologies are built. I received my PhD in Biostatistics from the Johns Hopkins Bloomberg School of Public Health, working with [Hongkai Ji](https://jilab.org).
+I am a postdoctoral fellow in the [Kalhor Lab](https://kalhorlab.bme.jhu.edu) at Johns Hopkins, where lineage recording technologies are built. I received my **PhD in Biostatistics** from the Johns Hopkins Bloomberg School of Public Health, working with [Hongkai Ji](https://jilab.org).
 
 ### Research Areas
 

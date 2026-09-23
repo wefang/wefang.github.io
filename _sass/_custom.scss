@@ -42,8 +42,8 @@ html[data-theme="dark"] {
 body {
   font-family: var(--site-font);
   font-weight: 400;
-  font-size: 1rem;
-  line-height: 1.58;
+  font-size: 1.07rem;
+  line-height: 1.6;
   color: var(--global-text-color);
   background: var(--global-bg-color);
 }
@@ -115,7 +115,16 @@ header.post-header h1 .font-weight-bold {
 .post-header .desc,
 .post-header p.desc {
   color: var(--global-text-color-light);
-  font-size: 1.05rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+.post-header .address {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+}
+.post strong {
+  font-weight: 600;
 }
 
 /* section headings on the about page ("selected publications", "Research program") */
@@ -168,19 +177,20 @@ article h3 {
   clear: both;
 }
 .research-item h4 {
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   font-weight: 600;
   margin: 0 0 0.15rem;
   border: 0;
 }
 .research-item p {
-  font-size: 0.96rem;
+  font-size: 1rem;
   line-height: 1.55;
   color: var(--global-text-color-light);
   margin: 0 0 0.45rem;
 }
 .research-item img {
-  width: 100%;
+  width: 82%;
+  margin: 0 auto;
   height: auto;
   display: block;
   background: #ffffff;
