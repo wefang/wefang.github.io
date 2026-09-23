@@ -24,11 +24,27 @@ from matplotlib.patches import FancyArrowPatch, Polygon, Rectangle
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "img", "research")
 os.makedirs(OUT, exist_ok=True)
 
-# the research statement's palette
-INK, MUTED, GREY, HAIR = "#1A171B", "#5F5A63", "#BDB7BD", "#E2DDE2"
-TEAL, ORANGE, PURPLE, BROWN, MAGENTA, BLUE = "#1B9E77", "#D95F02", "#7570B3", "#A6761D", "#E7298A", "#1F9BD6"
-ALLELES = [TEAL, ORANGE, PURPLE, BROWN, MAGENTA, BLUE]
-DROPOUT = "#C9C5CA"
+# ---- one palette for all three figures ----
+# Categorical colors are the Okabe-Ito set, which stays distinguishable under common color vision
+# deficiencies. The same meaning keeps the same color across figures: cell identities (fates in the
+# fate figure, states in the transfer figure) share IDENT, and recorder edits reuse its hues. Lightness
+# separates layers of meaning: clones are pale tints, identities are saturated. Magnitude (the signal)
+# is a single-hue slate ramp, never a category color. One accent, vermillion, marks what matters:
+# the newest edit, and human. Everything else is neutral.
+INK, MUTED, GREY, HAIR = "#1F2328", "#6B7280", "#B8BDC4", "#E5E7EB"
+OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE = "#E69F00", "#56B4E9", "#009E73", "#0072B2", "#CC79A7"
+OI_YELLOW, OI_VERMILLION = "#F0E442", "#D55E00"
+IDENT = [OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE]
+ACCENT = OI_VERMILLION
+SLATE = "#3B4A63"
+ALLELES = IDENT
+DROPOUT = "#CDD1D6"
+
+
+def tint(c, f=0.55):
+    """c mixed toward white by f, for a lighter layer of the same hue."""
+    a = np.array(matplotlib.colors.to_rgb(c))
+    return tuple(a + (1 - a) * f)
 plt.rcParams["font.family"] = "DejaVu Sans"
 W, H = 12.0, 3.6
 DPI = 200
@@ -66,8 +82,8 @@ def text(ax, x, y, s, **kw):
 fig, ax = canvas()
 rng = np.random.default_rng(9)
 NSITE = 5
-UNEDITED = "#2B2530"
-NEW = "#FFB000"
+UNEDITED = "#2B2F36"
+NEW = ACCENT
 TIPY = 0.6
 # the tree: name -> (x, y of the cell, children); y is the time of division, tips sit at sampling time
 TREE = {
@@ -163,7 +179,7 @@ for k, (lab, draw) in enumerate((("Unedited", "u"), ("Edited", "e"), ("Newest\ne
         for j, c in enumerate(ALLELES[:3]):
             ax.add_patch(Rectangle((KX + j * 0.085 - 0.07, y - 0.1), 0.065, 0.2, fc=c, ec="none"))
     elif draw == "n":
-        ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=ORANGE, ec="none"))
+        ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=IDENT[0], ec="none"))
         ax.add_patch(Rectangle((KX - 0.03, y - 0.13), 0.13, 0.26, fc="none", ec=NEW, lw=1.8))
     else:
         ax.add_patch(Rectangle((KX, y - 0.1), 0.07, 0.2, fc=DROPOUT, ec="none"))
@@ -222,9 +238,9 @@ def signal_of(p):
 
 fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
 
-CLONE_COLS = ["#8DD3C7", "#FDB462", "#BEBADA", "#FB8072", "#80B1D3", "#B3DE69", "#FCCDE5", "#D9C27A"]
-FATE_COLS = ["#F2C14E", "#3FA7A0", "#3D2C6B"]
-SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F7F4FB", "#9E9AC8", "#3F007D"])
+CLONE_COLS = [tint(c) for c in (OI_ORANGE, OI_SKY, OI_GREEN, OI_BLUE, OI_PURPLE, OI_YELLOW, "#8C96A3", "#B49A7A")]
+FATE_COLS = IDENT[:3]                              # the same colors as States 1 to 3 in the transfer figure
+SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F4F6F9", "#9AA6B8", SLATE])
 
 
 def tissue(ax, cx, cy, scale, p, colors):
@@ -245,7 +261,7 @@ def tissue(ax, cx, cy, scale, p, colors):
         ax.add_patch(Poly(np.array(cell.exterior.coords), closed=True, fc=colors[i], ec="white", lw=0.7, zorder=3))
         c = cell.centroid
         ax.add_patch(Ellipse((c.x, c.y), 0.34 * scale, 0.28 * scale, angle=rs.uniform(0, 180),
-                             fc="#2B2530", ec="none", alpha=0.55, zorder=4))
+                             fc=INK, ec="none", alpha=0.5, zorder=4))
     body = unary_union([c.buffer(0.08 * scale) for c in shapes]).buffer(-0.06 * scale)   # close the gaps between cells
     for g in getattr(body, "geoms", [body]):
         ax.add_patch(Poly(np.array(g.exterior.coords), closed=True, fc="none", ec=MUTED, lw=1.0, zorder=5))
@@ -278,12 +294,11 @@ save(fig, "fate.png")
 
 # =============================== 3. transfer ===============================
 # Left: a phylogeny with a silhouette per species; for each, a functional genomics signal track over
-# the same region, orthologous genes marked, and the region's synteny drawn as conserved blocks along
-# the genome (their order and orientation differ between species); each model organism's proposal
-# points onto the human track.
-# Right: the cell states of the same species as a stack of embedding planes, as in the research
-# statement: a branching trajectory in each, corresponding states linked, and human sampled only to
-# an earlier stage, so its later states are outlines.
+# the same region on its own plane, stacked in perspective, with the orthologous genes marked; each
+# model organism proposes a different human element.
+# Right: the cell states of the same species as a stack of embedding planes, one cluster per state.
+# Human is the reference and has every state; each model organism lacks some of them (outlined).
+# Model organisms are drawn in neutrals and human in the accent, so the figure reads human-centered.
 SIL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "silhouettes")
 W3, H3 = 12.0, 4.6
 fig = plt.figure(figsize=(W3, H3), dpi=DPI)
@@ -293,8 +308,12 @@ ax.set_ylim(0, H3)
 ax.set_aspect("equal")
 ax.axis("off")
 rs = np.random.default_rng(12)
-SPECIES = [("Zebrafish", "zebrafish", BLUE), ("Mouse", "mouse", ORANGE), ("Macaque", "macaque", PURPLE), ("Human", "human", TEAL)]
-ROW = [3.45, 2.52, 1.59, 0.66]                   # track baselines, human at the bottom
+SPECIES = [("Zebrafish", "zebrafish"), ("Mouse", "mouse"), ("Macaque", "macaque"), ("Human", "human")]
+ROW = [3.45, 2.52, 1.59, 0.66]                   # plane bottoms, human at the bottom
+
+
+def scol(key):
+    return ACCENT if key == "human" else SLATE
 
 
 def hline(x0, x1, y):
@@ -331,87 +350,97 @@ def silhouette(name, x, y, hmax, wmax, color):
     ax.imshow(rgba, extent=(x - w * sc / 2, x + w * sc / 2, y - h * sc / 2, y + h * sc / 2), zorder=4)
 
 
-for (lab, key, col), y in zip(SPECIES, ROW):
-    silhouette(key, 1.35, y + 0.4, 0.55, 0.7, col)
-    text(ax, 1.35, y + 0.02, lab, fontsize=10.5, color=col, fontweight="bold")
-
-TX0, TX1 = 1.95, 6.05
-xs = np.linspace(TX0, TX1, 700)
-# element positions per species; the region is longer in mouse and shorter in zebrafish, and the
-# middle block is inverted in zebrafish, so the elements do not line up column by column
-ELEM = {"zebrafish": [2.95, 4.45, 5.0], "mouse": [2.85, 3.95, 5.1], "macaque": [3.0, 4.05, 5.05], "human": [3.02, 4.08, 5.07]}
-GA = {"zebrafish": 2.05, "mouse": 2.02, "macaque": 2.08, "human": 2.08}
-GB = {"zebrafish": 5.45, "mouse": 5.6, "macaque": 5.55, "human": 5.57}
-def gene(x, y, color, label=None, strand=1):
-    """A gene arrow; strand -1 points left, as a gene on the reverse strand."""
-    pts = [(0, -0.07), (0.26, -0.07), (0.34, 0), (0.26, 0.07), (0, 0.07)]
-    if strand < 0:
-        pts = [(0.34 - px, py) for px, py in pts]
-    ax.add_patch(Polygon([(x + px, y + py) for px, py in pts], closed=True, fc=color, ec="none", zorder=5))
-    if label:
-        text(ax, x + 0.17, y + 0.2, label, fontsize=9.5, color=INK, style="italic")
+for (lab, key), y in zip(SPECIES, ROW):
+    silhouette(key, 1.35, y + 0.4, 0.55, 0.7, scol(key))
+    text(ax, 1.35, y + 0.02, lab, fontsize=10.5, color=scol(key), fontweight="bold")
 
 
-for (lab, key, col), y in zip(SPECIES, ROW):
-    sig = 0.03 * rs.random(xs.size)
-    for k, e in enumerate(ELEM[key]):
-        h = 0.5
-        sig += h * np.exp(-((xs - e) ** 2) / (2 * 0.045 ** 2))
-    for e in rs.uniform(TX0 + 0.5, TX1 - 0.8, 3):                       # species-specific peaks
-        sig += 0.15 * np.exp(-((xs - e) ** 2) / (2 * 0.03 ** 2))
-    ax.fill_between(xs, y, y + sig, color=col, alpha=0.9, lw=0, zorder=3)
-    ax.plot([TX0, TX1], [y, y], color=GREY, lw=1, zorder=2)
-    top = key == "zebrafish"
-    gene(GA[key], y, INK, "Gene A" if top else None)
-    gene(GB[key], y, INK, "Gene B" if top else None, strand=-1)
-# orthologous genes joined across species
-for (_, a, _), (_, b, _), ya, yb in zip(SPECIES, SPECIES[1:], ROW, ROW[1:]):
+def plane(k, a, b, x0, wa, wb, hb):
+    """A point on plane k: a runs along the plane, b runs into it (drawn up and to the right)."""
+    return x0 + 0.3 * k + wa * a + wb * b, ROW[k] - 0.1 + hb * b
+
+
+def Lk(k, a, b):
+    return plane(k, a, b, 1.8, 3.75, 0.55, 0.42)
+
+
+def Rk(k, a, b):
+    return plane(k, a, b, 6.6, 3.45, 0.7, 0.62)
+
+
+def draw_plane(P, k, key, z):
+    ax.add_patch(Polygon([P(k, 0, 0), P(k, 1, 0), P(k, 1, 1), P(k, 0, 1)], closed=True, fc="#F7F7F8",
+                         ec=scol(key), lw=1.3 if key == "human" else 0.9, alpha=0.96, zorder=z))
+
+
+# ---------------- left: a signal track on each plane ----------------
+ELEM = {"zebrafish": [0.24, 0.6, 0.73], "mouse": [0.22, 0.48, 0.76], "macaque": [0.26, 0.5, 0.75], "human": [0.26, 0.51, 0.755]}
+GA = {"zebrafish": 0.03, "mouse": 0.02, "macaque": 0.04, "human": 0.04}      # gene A, left flank
+GB = {"zebrafish": 0.86, "mouse": 0.89, "macaque": 0.88, "human": 0.885}     # gene B, reverse strand
+TRACK_B = 0.3                                    # the track runs along the plane at this depth
+aa = np.linspace(0.0, 1.0, 600)
+for k, (lab, key) in enumerate(SPECIES):
+    draw_plane(Lk, k, key, 2 + k * 0.01)
+    sig = 0.03 * rs.random(aa.size)
+    for e in ELEM[key]:
+        sig += 0.5 * np.exp(-((aa - e) ** 2) / (2 * 0.011 ** 2))
+    for e in rs.uniform(0.12, 0.8, 3):                                   # species-specific peaks
+        sig += 0.15 * np.exp(-((aa - e) ** 2) / (2 * 0.008 ** 2))
+    base = np.array([Lk(k, a, TRACK_B) for a in aa])
+    ax.fill_between(base[:, 0], base[:, 1], base[:, 1] + 0.95 * sig, color=scol(key), alpha=0.85, lw=0, zorder=5)
+    ax.plot(base[:, 0], base[:, 1], color=GREY, lw=0.9, zorder=4)
+    for g, strand, name in ((GA, 1, "Gene A"), (GB, -1, "Gene B")):
+        gx, gy = Lk(k, g[key], TRACK_B)
+        pts = [(0, -0.065), (0.24, -0.065), (0.32, 0), (0.24, 0.065), (0, 0.065)]
+        if strand < 0:
+            pts = [(0.32 - px, py) for px, py in pts]
+        ax.add_patch(Polygon([(gx + px, gy + py) for px, py in pts], closed=True, fc=INK, ec="none", zorder=6))
+        if k == 0:
+            text(ax, gx + 0.16, gy + 0.2, name, fontsize=9.5, color=INK, style="italic")
+# orthologous genes joined plane to plane
+for k in range(3):
     for g in (GA, GB):
-        ax.plot([g[a] + 0.17, g[b] + 0.17], [ya - 0.1, yb + 0.1], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
+        p, q = Lk(k, g[SPECIES[k][1]], TRACK_B), Lk(k + 1, g[SPECIES[k + 1][1]], TRACK_B)
+        ax.plot([p[0] + 0.16, q[0] + 0.16], [p[1] - 0.07, q[1] + 0.07], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
 # each model organism proposes a different human element, from the element it has evidence for
-for (lab, key, col), y, k in zip(SPECIES[:3], ROW[:3], (2, 1, 0)):
-    ax.add_patch(FancyArrowPatch((ELEM[key][k] + 0.1, y + 0.3), (ELEM["human"][k] + 0.08, ROW[3] + 0.5),
+for k, j in zip(range(3), (2, 1, 0)):
+    key = SPECIES[k][1]
+    p = Lk(k, ELEM[key][j], TRACK_B)
+    q = Lk(3, ELEM["human"][j], TRACK_B)
+    ax.add_patch(FancyArrowPatch((p[0] + 0.05, p[1] + 0.3), (q[0] + 0.03, q[1] + 0.5),
                                  connectionstyle="arc3,rad=-0.3", arrowstyle="-|>", mutation_scale=11,
-                                 color=col, lw=1.4, zorder=6))
-text(ax, (TX0 + TX1) / 2, 4.38, "Regulatory elements", fontsize=12, color=INK)
+                                 color=INK, lw=1.3, zorder=7))
+    hx, hy = q
+    ax.add_patch(matplotlib.patches.Ellipse((hx, hy + 0.22), 0.2, 0.56, fc="none", ec=ACCENT, lw=1.4, zorder=7))
+text(ax, 3.9, 4.42, "Regulatory elements", fontsize=12, color=INK)
 
-# ---------------- right: a stack of embedding planes, one per species ----------------
-# each cell state is a cluster, placed alike in every species with a small species-specific shift.
-# Human is the reference and has every state; each model organism lacks some of them (outlined)
-STATES = [("State 1", "#F28E2B", 0.13, 0.5), ("State 2", "#E15759", 0.38, 0.28), ("State 3", "#76B7B2", 0.38, 0.72),
-          ("State 4", "#59A14F", 0.72, 0.25), ("State 5", "#B07AA1", 0.78, 0.72)]
-
-
-def Pk(k, a, b):
-    ox, oy = 6.55 + 0.34 * k, ROW[k] - 0.08
-    return ox + 3.5 * a + 0.7 * b, oy + 0.62 * b
-
-
+# ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
+STATES = [("State %d" % (j + 1), IDENT[j], ca, cb) for j, (ca, cb) in
+          enumerate(((0.13, 0.5), (0.38, 0.28), (0.38, 0.72), (0.72, 0.25), (0.78, 0.72)))]
 MISSING = {"zebrafish": {2, 4}, "mouse": {4}, "macaque": {3}, "human": set()}
 CENT = []
-for k, (lab, key, col) in enumerate(SPECIES):
-    ax.add_patch(Polygon([Pk(k, 0, 0), Pk(k, 1, 0), Pk(k, 1, 1), Pk(k, 0, 1)], closed=True,
-                         fc="#FAFAFB", ec=col, lw=1.1, alpha=0.95, zorder=9 - k))
+for k, (lab, key) in enumerate(SPECIES):
+    draw_plane(Rk, k, key, 9 - k)
     cents = {}
     for j, (sname, sc, ca, cb) in enumerate(STATES):
         ca2, cb2 = ca + rs.normal(0, 0.025), cb + rs.normal(0, 0.04)
-        cents[j] = Pk(k, ca2, cb2)
+        cents[j] = Rk(k, ca2, cb2)
         if j in MISSING[key]:                                           # this species has no such state
             ax.add_patch(Ellipse(cents[j], 0.5, 0.2, fc="none", ec=sc, lw=1.2, ls=(0, (1.5, 1.5)), zorder=11))
             continue
         n = 28
-        aa = np.clip(ca2 + rs.normal(0, 0.035, n), 0.03, 0.97)
-        bb = np.clip(cb2 + rs.normal(0, 0.09, n), 0.06, 0.94)
-        pts = np.array([Pk(k, u, v) for u, v in zip(aa, bb)])
+        ua = np.clip(ca2 + rs.normal(0, 0.035, n), 0.03, 0.97)
+        ub = np.clip(cb2 + rs.normal(0, 0.09, n), 0.06, 0.94)
+        pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
         ax.scatter(pts[:, 0], pts[:, 1], s=8, color=sc, edgecolors="none", zorder=10 - k)
     CENT.append(cents)
 for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
-        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color="#9FB6D6", lw=0.9, ls=(0, (3, 2)), zorder=1)
-text(ax, 8.9, 4.38, "Cell states, aligned to human", fontsize=12, color=INK)
+        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=GREY, lw=0.9, ls=(0, (3, 2)), zorder=1)
+text(ax, 8.95, 4.42, "Cell states, aligned to human", fontsize=12, color=INK)
 for j, (sname, sc, _, _) in enumerate(STATES):
-    ax.scatter([6.75 + j * 1.0], [0.2], s=26, color=sc, edgecolors="none")
-    text(ax, 6.85 + j * 1.0, 0.2, sname, fontsize=9.5, ha="left")
+    ax.scatter([6.75 + j * 1.0], [0.18], s=26, color=sc, edgecolors="none")
+    text(ax, 6.85 + j * 1.0, 0.18, sname, fontsize=9.5, ha="left")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
