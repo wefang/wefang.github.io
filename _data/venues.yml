@@ -1,32 +1,32 @@
-# journal badges in the publication list; one muted color, so the badge reads as a label, not decoration
+# journal badges in the publication list, drawn as grey outlined labels by _sass/_custom.scss
 "Cell":
   url: https://www.cell.com/cell/home
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "Genome Biol.":
   url: https://genomebiology.biomedcentral.com
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "Cell Rep.":
   url: https://www.cell.com/cell-reports/home
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "Nat. Commun.":
   url: https://www.nature.com/ncomms/
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "NAR":
   url: https://academic.oup.com/nar
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "iScience":
   url: https://www.cell.com/iscience/home
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "IJMS":
   url: https://www.mdpi.com/journal/ijms
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "bioRxiv":
   url: https://www.biorxiv.org
-  color: "#5B6B73"
+  color: "#6E6E73"
 "Methods Mol. Biol.":
   url: https://link.springer.com/bookseries/7651
-  color: "#0F6E6E"
+  color: "#6E6E73"
 "In prep.":
-  color: "#5B6B73"
+  color: "#6E6E73"
 "Submitted":
-  color: "#5B6B73"
+  color: "#6E6E73"
