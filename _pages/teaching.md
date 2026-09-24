@@ -2,7 +2,7 @@
 layout: page
 permalink: /teaching/
 title: Teaching
-description: Teaching assistant in the Department of Biostatistics, Johns Hopkins University, 2015–2021.
+description: Teaching assistant in the Department of Biostatistics, Johns Hopkins University
 nav: true
 nav_order: 5
 ---
