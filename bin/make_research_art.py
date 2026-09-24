@@ -65,7 +65,11 @@ IDENT_M = ["#6F8CA8", "#7DA58F", "#C48B66", "#D2AE5E", "#8F82AE"]
 # (gold, violet, rose, grey), each in a light and a dark tone. Sister clones get neighbouring indices
 # and grow side by side, so the order alternates hue and lightness to keep every border visible.
 CLONE_SET = ["#E3B94F", "#6E5A9E", "#E39AB8", "#C9C8CF", "#F3DF9B", "#9C4F78", "#B7A6DA", "#6F6D78"]
-plt.rcParams["font.family"] = "DejaVu Sans"
+# the figures use the site's one typeface, Source Serif 4 (SIL Open Font License), shipped in bin/fonts
+from matplotlib import font_manager
+for _f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")):
+    font_manager.fontManager.addfont(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", _f))
+plt.rcParams["font.family"] = "Source Serif 4"
 W, H = 12.0, 4.1                                   # every figure: 12 wide, with a header band on top
 DPI = 200
 

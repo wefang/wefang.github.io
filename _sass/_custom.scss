@@ -20,8 +20,8 @@
   --global-footer-text-color: #6e6e73;
   --global-footer-link-color: #1d1d1f;
   --site-underline: #c7c7cc;
-  --site-font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --site-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --site-font: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --site-mono: var(--site-font);   /* no second family: labels and buttons use the serif too */
   --site-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
 }
 
@@ -385,4 +385,30 @@ article h3 {
 .navbar .nav-link {
   text-transform: none;
   letter-spacing: 0.02em;
+}
+
+
+/* ---- one typeface throughout ---- */
+html,
+body,
+.navbar,
+.navbar .nav-link,
+.btn,
+.badge,
+footer,
+.post-header .desc,
+.profile .more-info,
+.publications .author,
+.publications .periodical,
+.publications .links a.btn,
+.publications abbr.badge {
+  font-family: var(--site-font) !important;
+}
+.publications .links a.btn,
+.publications abbr.badge {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+.software-item h3 {
+  font-family: var(--site-font);
 }
