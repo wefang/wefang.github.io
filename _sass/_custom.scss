@@ -22,6 +22,7 @@
   --site-underline: #c7c7cc;
   --site-font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --site-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --site-serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
 }
 
 html[data-theme="dark"] {
@@ -156,6 +157,12 @@ article h3 {
 }
 .profile img {
   box-shadow: none;
+}
+/* the headshot sits a little higher, level with the name block */
+@media (min-width: 768px) {
+  .profile {
+    margin-top: -2.4rem;
+  }
 }
 .profile .more-info {
   font-family: var(--site-font);
@@ -329,4 +336,53 @@ footer {
     transition: none !important;
     animation: none !important;
   }
+}
+
+
+/* ---- formal typography: a serif for the name and headings, small caps for section titles ---- */
+.post-header .post-title,
+header.post-header h1,
+.research-item h4,
+.software-item h3,
+.publications .title {
+  font-family: var(--site-serif);
+  letter-spacing: 0;
+}
+.post-header .post-title,
+header.post-header h1 {
+  font-weight: 600;
+  font-size: 2.7rem;
+}
+.post h2,
+.publications h2,
+article h3 {
+  font-family: var(--site-serif);
+  font-variant: small-caps;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  font-size: 1.35rem;
+  border-bottom: 1px solid var(--global-text-color);
+  padding-bottom: 0.15rem;
+}
+.research-item h4 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.publications .title {
+  font-size: 1.04rem;
+  font-weight: 600;
+}
+.software-item h3 {
+  font-family: var(--site-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.publications,
+.periodical,
+.post-header .address {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.navbar .nav-link {
+  text-transform: none;
+  letter-spacing: 0.02em;
 }

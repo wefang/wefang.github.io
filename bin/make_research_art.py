@@ -66,7 +66,7 @@ IDENT_M = ["#6F8CA8", "#7DA58F", "#C48B66", "#D2AE5E", "#8F82AE"]
 # and grow side by side, so the order alternates hue and lightness to keep every border visible.
 CLONE_SET = ["#E3B94F", "#6E5A9E", "#E39AB8", "#C9C8CF", "#F3DF9B", "#9C4F78", "#B7A6DA", "#6F6D78"]
 plt.rcParams["font.family"] = "DejaVu Sans"
-W, H = 12.0, 3.6
+W, H = 12.0, 4.1                                   # every figure: 12 wide, with a header band on top
 DPI = 200
 
 
@@ -81,6 +81,8 @@ def canvas():
 
 
 def save(fig, name):
+    if name == "fate.png" and os.environ.get("FATE_OUT"):
+        name = os.environ["FATE_OUT"]
     fig.savefig(os.path.join(OUT, name), dpi=DPI, facecolor="white")
     plt.close(fig)
 
@@ -91,6 +93,12 @@ def text(ax, x, y, s, **kw):
     kw.setdefault("ha", "center")
     kw.setdefault("va", "center")
     ax.text(x, y, s, **kw)
+
+
+def header(ax, x0, x1, y, label):
+    """The one header style all three figures share: a bold title over a thin rule."""
+    ax.plot([x0, x1], [y - 0.19, y - 0.19], color=GREY, lw=1.0)
+    text(ax, (x0 + x1) / 2, y, label, fontsize=12.5, color=INK, fontweight="bold")
 
 
 # =============================== 1. lineage ===============================
@@ -194,7 +202,8 @@ for i, t in enumerate(TIPS):
         if rng.random() < 0.2:
             c = DROPOUT                                        # the readout failed at this site
         ax.add_patch(Rectangle((MX + s * (cw + 0.05), y), cw, ch, fc=c, ec="none", zorder=3))
-text(ax, MX + NSITE * (cw + 0.05) / 2, 3.45, "Sequenced records", fontsize=11, color=INK)
+header(ax, 1.35, 7.75, H - 0.18, "Lineage")
+header(ax, 8.75, 11.2, H - 0.18, "Sequenced records")
 ax.add_patch(Rectangle((MX, 0.2), 0.16, 0.16, fc=DROPOUT, ec="none"))
 text(ax, MX + 0.26, 0.28, "Dropout", fontsize=9.5, ha="left")
 save(fig, "lineage.png")
@@ -216,14 +225,58 @@ rs = np.random.default_rng(21)
 GENS, CLONE_GEN, EARLY_GEN = 9, 3, 6
 
 
+# the tissue grows inside an outline that keeps its shape and scales with the number of cells
+TISSUE_SHAPE = os.environ.get("TISSUE_SHAPE", "bud")
+
+
+def outline_unit(kind):
+    """A closed outline of unit area, centred on the origin."""
+    th = np.linspace(0, 2 * np.pi, 240, endpoint=False)
+    if kind == "bean":                                   # kidney: long, with one concave side
+        x = 1.55 * np.cos(th)
+        y = 0.8 * np.sin(th) - 0.28 * np.cos(2 * th) * (np.sin(th) > 0) - 0.1 * np.cos(th) ** 2
+    elif kind == "bud":                                  # limb bud: a broad base and a rounded, uneven outgrowth
+        wob = 1 + 0.07 * np.sin(3 * th + 0.7) + 0.045 * np.cos(5 * th + 0.3) + 0.03 * np.sin(7 * th + 1.9)
+        x = 1.15 * np.cos(th) * (1 - 0.2 * np.sin(th)) * wob
+        dome = (1.45 * np.sin(th) + 0.22 * np.cos(th) * np.sin(th)) * wob - 0.32     # leans to one side
+        base = -0.32 + 0.06 * np.sin(th) + 0.035 * np.sin(4 * th + 0.5)               # not quite flat
+        y = np.where(np.sin(th) < 0, base, dome)
+    else:                                                # lobed, an irregular organic outline
+        r = 1 + 0.16 * np.sin(3 * th + 0.4) + 0.1 * np.cos(5 * th + 1.1) + 0.06 * np.sin(2 * th)
+        x, y = 1.4 * r * np.cos(th), 0.85 * r * np.sin(th)
+    poly = SPoly(np.c_[x, y]).buffer(0.04).buffer(-0.04)          # smooth out any self-crossing
+    if poly.geom_type == "MultiPolygon":
+        poly = max(poly.geoms, key=lambda g: g.area)
+    c = poly.centroid
+    xy = np.array(poly.exterior.coords) - [c.x, c.y]
+    return xy / np.sqrt(SPoly(xy).area)
+
+
+UNIT = outline_unit(TISSUE_SHAPE)
+
+
+def confine(p):
+    """Pull any cell that has left the outline back just inside it; the outline is scaled so its
+    area matches the number of cells."""
+    shape = SPoly(UNIT * np.sqrt(0.8 * len(p)))       # slightly under the packing area, so cells fill it
+    inner = shape.buffer(-0.3)
+    for i, q in enumerate(p):
+        pt = Point(q)
+        if not inner.contains(pt):
+            b = inner.exterior.interpolate(inner.exterior.project(pt))
+            p[i] = [b.x, b.y]
+    return p
+
+
 def relax(p, iters=30):
-    """Overlapping cells push apart; a weak confinement across the tissue makes it grow long."""
-    for _ in range(iters):
+    """Overlapping cells push apart, inside the tissue outline."""
+    for it in range(iters):
         d = p[:, None, :] - p[None, :, :]
         r = np.hypot(d[..., 0], d[..., 1]) + np.eye(len(p)) * 9
         over = np.clip(1.0 - r, 0, None)
-        p = p + 0.25 * (d / r[..., None] * over[..., None]).sum(1)
-        p[:, 1] -= 0.012 * p[:, 1]
+        p = p + 0.45 * (d / r[..., None] * over[..., None]).sum(1)
+        if len(p) >= 8 and it % 2 == 1:
+            p = confine(p)
     return p
 
 
@@ -240,19 +293,11 @@ for g in range(1, GENS + 1):
     if g == CLONE_GEN:                                   # label the founders of the clones we follow
         clone = np.arange(len(pos))
         bias = rs.normal(0, 0.07, len(pos))
-    pos = relax(pos + rs.normal(0, 0.08, pos.shape))
+    pos = relax(pos + rs.normal(0, 0.08, pos.shape), iters=60 + 25 * g)   # enough to resolve the overlaps as the tissue grows
     if g == EARLY_GEN:
         snap = dict(pos=pos.copy(), clone=clone.copy())
 
 # a gentle bend, so the tissue is not a plain ellipse
-def bend(p):
-    q = p.copy()
-    q[:, 1] += 0.012 * (q[:, 0] ** 2) - 0.06 * q[:, 0]
-    return q
-
-
-pos = bend(pos)
-snap["pos"] = bend(snap["pos"])
 XMIN, XMAX = pos[:, 0].min(), pos[:, 0].max()
 
 
@@ -263,7 +308,9 @@ def signal_of(p):
 fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
 
 CLONE_COLS = CLONE_SET
-FATE_COLS = IDENT_M[:3]                            # the same colors as States 1 to 3 in the transfer figure
+# low signal, middle, high signal: the middle band stays uncommitted (blue), flanked by two fates
+FATE_COLS = [IDENT_M[1], IDENT_M[0], IDENT_M[2]]
+FATE_LABS = ("Fate A", "Uncommitted", "Fate B")
 # the signal is a single slate ramp, from near white to near black, so its magnitude reads at a glance
 SIG_CMAP = matplotlib.colors.LinearSegmentedColormap.from_list("sig", ["#F7F8FA", "#B4BDCB", "#5E6B82", "#18202E"])
 
@@ -297,7 +344,7 @@ fig, ax = canvas()
 # early: two small tissues, clones and the signal they sit in
 early, eclone = snap["pos"], snap["clone"]
 # one scale for both stages, set so the grown tissue fills its panel; the early tissue is true to size
-SC = min(3.1 / np.ptp(pos[:, 0]), 2.45 / np.ptp(pos[:, 1]))
+SC = min(3.35 / np.ptp(pos[:, 0]), 2.75 / np.ptp(pos[:, 1]))
 tissue(ax, 1.15, 1.9, SC, early, [CLONE_COLS[c % 8] for c in eclone])
 tissue(ax, 3.2, 1.9, SC, early, [SIG_CMAP(v) for v in signal_of(early)])
 # late: the grown tissue, clones and the fate each cell took
@@ -306,9 +353,7 @@ tissue(ax, 10.05, 1.9, SC, pos, [FATE_COLS[f] for f in fate])
 ax.add_patch(FancyArrowPatch((4.2, 1.9), (4.7, 1.9), arrowstyle="-|>", mutation_scale=14, color=MUTED, lw=1.4))
 # group labels on top, panel labels underneath, so the two never read as one
 for x0, x1, lab in ((0.3, 4.05, "Early"), (4.85, 11.85, "Late")):
-    ax.plot([x0, x1], [3.32, 3.32], color=GREY, lw=1.0)
-    text(ax, (x0 + x1) / 2, 3.47, lab, fontsize=12.5, color=INK, fontweight="bold",
-         bbox=dict(boxstyle="square,pad=0.2", fc="white", ec="none"))
+    header(ax, x0, x1, H - 0.18, lab)
 for x, lab in ((1.15, "Clones"), (3.2, "Signal"), (6.45, "Clones"), (10.05, "Fates")):
     text(ax, x, 0.28, lab, fontsize=11.5, color=MUTED)
 # the signal's scale bar, under the signal panel
@@ -317,9 +362,10 @@ ax.imshow(sbar, extent=(2.55, 3.85, 0.02, 0.12), aspect="auto", cmap=SIG_CMAP, z
 text(ax, 2.5, 0.07, "Low", fontsize=9, ha="right")
 text(ax, 3.9, 0.07, "High", fontsize=9, ha="left")
 # fate key
-for k, (c, lab) in enumerate(zip(FATE_COLS, ("Fate 1", "Fate 2", "Fate 3"))):
-    ax.add_patch(Rectangle((8.95 + k * 0.85, 0.02), 0.16, 0.12, fc=c, ec="none"))
-    text(ax, 9.16 + k * 0.85, 0.08, lab, fontsize=9.5, ha="left")
+for k, (c, lab) in enumerate(zip(FATE_COLS, FATE_LABS)):
+    kx = (8.55, 9.45, 10.8)[k]
+    ax.add_patch(Rectangle((kx, 0.02), 0.16, 0.12, fc=c, ec="none"))
+    text(ax, kx + 0.21, 0.08, lab, fontsize=9.5, ha="left")
 save(fig, "fate.png")
 
 # =============================== 3. transfer ===============================
@@ -455,7 +501,7 @@ ax.plot([p[0], q[0] + 0.02], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.2, ls
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.05, q[1] + 0.23], color=MUTED, lw=2.0, zorder=7)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=2.0, zorder=7)
 text(ax, q[0] - 0.1, ROW[3] - 0.26, "No human counterpart", fontsize=9, color=MUTED)
-text(ax, 4.2, 4.42, "Regulatory Elements", fontsize=12, color=INK)
+header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 
 # ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
 STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
@@ -480,7 +526,7 @@ for k, (lab, key) in enumerate(SPECIES):
 for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
         ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=10)
-text(ax, 9.05, 4.42, "Mapped Cell States", fontsize=12, color=INK)
+header(ax, 6.85, 11.9, H3 - 0.18, "Mapped cell states")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
