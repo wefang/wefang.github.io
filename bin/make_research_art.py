@@ -83,9 +83,21 @@ def canvas():
 def save(fig, name):
     if name == "fate.png" and os.environ.get("FATE_OUT"):
         name = os.environ["FATE_OUT"]
-    # cropped to the drawn content with one fixed margin, so every figure spans the page width alike
-    fig.savefig(os.path.join(OUT, name), dpi=DPI, facecolor="white", bbox_inches="tight", pad_inches=0.06)
+    path = os.path.join(OUT, name)
+    fig.savefig(path, dpi=DPI, facecolor="white")
     plt.close(fig)
+    crop_to_ink(path)
+
+
+def crop_to_ink(path, pad=24):
+    """Crop a saved figure to its drawn pixels plus one fixed margin, so every figure's content spans
+    the full width it is shown at."""
+    from PIL import Image
+    im = Image.open(path).convert("RGB")
+    a = np.asarray(im).astype(int)
+    ink = np.where((a < 245).any(axis=2))
+    y0, y1, x0, x1 = ink[0].min(), ink[0].max(), ink[1].min(), ink[1].max()
+    im.crop((max(0, x0 - pad), max(0, y0 - pad), min(im.width, x1 + pad), min(im.height, y1 + pad))).save(path)
 
 
 def badge(ax, x, y, n, r=0.13):
@@ -123,15 +135,15 @@ TIPY = 0.6
 
 # ---------------- the tree ----------------
 TREE = {
-    "r": (4.60, 3.2, ["A", "B"]),
-    "A": (3.25, 2.3, ["A1", "t3"]),
-    "A1": (2.70, 1.45, ["t1", "t2"]),
-    "B": (6.05, 2.42, ["B1", "B2"]),
-    "B1": (5.21, 1.55, ["t4", "t5"]),
-    "B2": (6.86, 1.45, ["t6", "t7"]),
+    "r": (4.33, 3.2, ["A", "B"]),
+    "A": (2.68, 2.3, ["A1", "t3"]),
+    "A1": (2.01, 1.45, ["t1", "t2"]),
+    "B": (6.10, 2.42, ["B1", "B2"]),
+    "B1": (5.07, 1.55, ["t4", "t5"]),
+    "B2": (7.09, 1.45, ["t6", "t7"]),
 }
 TIPS = ["t1", "t2", "t3", "t4", "t5", "t6", "t7"]
-TIPX = dict(zip(TIPS, [2.2, 3.03, 3.9, 4.8, 5.63, 6.45, 7.27]))
+TIPX = dict(zip(TIPS, [1.40, 2.41, 3.47, 4.57, 5.58, 6.58, 7.59]))
 
 
 def cell(x, y, sites, new=None, rx=0.36, ry=0.29, seed=0):
@@ -184,10 +196,10 @@ def grow(name, sites, new, seed):
 grow("r", [None] * NSITE, None, 1)
 for i, t in enumerate(TIPS):
     badge(ax, TIPX[t], TIPY - 0.45, i + 1)
-ax.add_patch(FancyArrowPatch((1.7, 3.4), (1.7, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
-text(ax, 1.52, 1.9, "Time", fontsize=10.5, rotation=90)
+ax.add_patch(FancyArrowPatch((0.45, 3.4), (0.45, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
+text(ax, 0.27, 1.9, "Time", fontsize=10.5, rotation=90)
 # the tree's key sits with the tree, in the space beside the root
-KX, KY = 2.0, 3.28
+KX, KY = 0.75, 3.28
 ax.add_patch(Rectangle((KX, KY - 0.08), 0.06, 0.16, fc=UNEDITED, ec="none"))
 text(ax, KX + 0.14, KY, "Unedited", fontsize=9.5, ha="left")
 for j, c in enumerate(ALLELES[:3]):
@@ -198,9 +210,9 @@ ax.add_patch(Rectangle((KX - 0.025, KY - 0.805), 0.11, 0.21, fc="none", ec=NEW, 
 text(ax, KX + 0.14, KY - 0.7, "Newest edit", fontsize=9.5, ha="left")
 
 # ---------------- sequencing ----------------
-ax.add_patch(FancyArrowPatch((8.05, 1.85), (8.65, 1.85), arrowstyle="-|>", mutation_scale=15, color=INK, lw=1.5))
-text(ax, 8.35, 2.13, "Sequence", fontsize=10.5, color=INK)
-MX, MY, cw, ch = 9.15, 2.95, 0.3, 0.29
+ax.add_patch(FancyArrowPatch((8.85, 1.85), (9.45, 1.85), arrowstyle="-|>", mutation_scale=15, color=INK, lw=1.5))
+text(ax, 9.15, 2.13, "Sequence", fontsize=10.5, color=INK)
+MX, MY, cw, ch = 10.0, 2.95, 0.3, 0.29
 for i, t in enumerate(TIPS):
     y = MY - i * (ch + 0.06)
     badge(ax, MX - 0.22, y + ch / 2, i + 1)
@@ -209,8 +221,8 @@ for i, t in enumerate(TIPS):
         if rng.random() < 0.2:
             c = DROPOUT                                        # the readout failed at this site
         ax.add_patch(Rectangle((MX + s * (cw + 0.05), y), cw, ch, fc=c, ec="none", zorder=3))
-header(ax, 1.35, 7.75, H - 0.18, "Lineage")
-header(ax, 8.75, 11.2, H - 0.18, "Sequenced records")
+header(ax, 0.3, 8.6, H - 0.18, "Lineage")
+header(ax, 9.7, 11.85, H - 0.18, "Sequenced records")
 ax.add_patch(Rectangle((MX, 0.2), 0.16, 0.16, fc=DROPOUT, ec="none"))
 text(ax, MX + 0.26, 0.28, "Dropout", fontsize=9.5, ha="left")
 save(fig, "lineage.png")
@@ -539,6 +551,7 @@ for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
         ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=10)
 header(ax, 6.85, 11.9, H3 - 0.18, "Mapped cell states")
-fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white", bbox_inches="tight", pad_inches=0.06)
+fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
+crop_to_ink(os.path.join(OUT, "transfer.png"))
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
