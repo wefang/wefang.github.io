@@ -83,8 +83,15 @@ def canvas():
 def save(fig, name):
     if name == "fate.png" and os.environ.get("FATE_OUT"):
         name = os.environ["FATE_OUT"]
-    fig.savefig(os.path.join(OUT, name), dpi=DPI, facecolor="white")
+    # cropped to the drawn content with one fixed margin, so every figure spans the page width alike
+    fig.savefig(os.path.join(OUT, name), dpi=DPI, facecolor="white", bbox_inches="tight", pad_inches=0.06)
     plt.close(fig)
+
+
+def badge(ax, x, y, n, r=0.13):
+    """A small numbered disc, the same for a sampled cell and its row of the sequenced records."""
+    ax.add_patch(matplotlib.patches.Circle((x, y), r, fc="#EEF0F3", ec=GREY, lw=0.8, zorder=6))
+    ax.text(x, y, str(n), fontsize=9, color=INK, ha="center", va="center", fontweight="bold", zorder=7)
 
 
 def text(ax, x, y, s, **kw):
@@ -176,7 +183,7 @@ def grow(name, sites, new, seed):
 
 grow("r", [None] * NSITE, None, 1)
 for i, t in enumerate(TIPS):
-    text(ax, TIPX[t], TIPY - 0.42, str(i + 1), fontsize=10, color=MUTED)
+    badge(ax, TIPX[t], TIPY - 0.45, i + 1)
 ax.add_patch(FancyArrowPatch((1.7, 3.4), (1.7, 0.35), arrowstyle="-|>", mutation_scale=12, color=GREY, lw=1.2))
 text(ax, 1.52, 1.9, "Time", fontsize=10.5, rotation=90)
 # the tree's key sits with the tree, in the space beside the root
@@ -196,7 +203,7 @@ text(ax, 8.35, 2.13, "Sequence", fontsize=10.5, color=INK)
 MX, MY, cw, ch = 9.15, 2.95, 0.3, 0.29
 for i, t in enumerate(TIPS):
     y = MY - i * (ch + 0.06)
-    text(ax, MX - 0.17, y + ch / 2, str(i + 1), fontsize=10, color=MUTED)
+    badge(ax, MX - 0.22, y + ch / 2, i + 1)
     for s in range(NSITE):
         c = RECORD[t][s] if RECORD[t][s] is not None else UNEDITED
         if rng.random() < 0.2:
@@ -302,10 +309,14 @@ XMIN, XMAX = pos[:, 0].min(), pos[:, 0].max()
 
 
 def signal_of(p):
-    return np.clip((p[:, 0] - XMIN) / (XMAX - XMIN), 0, 1)
+    """Position along the tissue mapped to signal: it changes fast near both ends and hardly at all
+    through the middle, where cells sit on a plateau."""
+    u = np.clip((p[:, 0] - p[:, 0].min()) / np.ptp(p[:, 0]), 0, 1)       # the gradient spans the tissue it is in
+    v = 2 * u - 1
+    return 0.5 + 0.5 * np.sign(v) * np.abs(v) ** 3
 
 
-fate = np.digitize(signal_of(pos) + bias + rs.normal(0, 0.05, len(pos)), [0.38, 0.64])
+fate = np.digitize(signal_of(pos) + 0.5 * bias + rs.normal(0, 0.025, len(pos)), [0.465, 0.535])   # the plateau stays uncommitted
 
 CLONE_COLS = CLONE_SET
 # low signal, middle, high signal: the middle band stays uncommitted (blue), flanked by two fates
@@ -505,8 +516,9 @@ header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 
 # ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
 STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
-          enumerate(((0.13, 0.5), (0.38, 0.28), (0.38, 0.72), (0.72, 0.25), (0.78, 0.72)))]
-MISSING = {"zebrafish": {2, 4}, "mouse": {4}, "macaque": {3}, "human": set()}
+          enumerate(((0.13, 0.5), (0.4, 0.3), (0.62, 0.72), (0.85, 0.35)))]
+# the missing states follow the phylogeny: the more distant the species, the more it lacks
+MISSING = {"zebrafish": {2, 3}, "mouse": {3}, "macaque": set(), "human": set()}
 CENT = []
 for k, (lab, key) in enumerate(SPECIES):
     draw_plane(Rk, k, key, 9 - k)
@@ -527,6 +539,6 @@ for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
         ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=10)
 header(ax, 6.85, 11.9, H3 - 0.18, "Mapped cell states")
-fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
+fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white", bbox_inches="tight", pad_inches=0.06)
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))
