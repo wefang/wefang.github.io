@@ -526,30 +526,71 @@ ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=
 text(ax, q[0] - 0.1, ROW[3] - 0.26, "No human counterpart", fontsize=9, color=MUTED)
 header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 
-# ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
-STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
-          enumerate(((0.13, 0.5), (0.4, 0.3), (0.62, 0.72), (0.85, 0.35)))]
-# the missing states follow the phylogeny: the more distant the species, the more it lacks
+# ---------------- right: a stack of embedding planes, one per species ----------------
+# Each species has its own embedding, so the same state sits at a different place and orientation in
+# each, and mapping is an alignment problem, not a copy. A state is a curved cloud of cells over a soft
+# density region. Human and macaque resolve state 2 into two substates; mouse and zebrafish have a
+# single merged cluster, which maps onto both (a forked link). Missing states follow the phylogeny and
+# are drawn as dotted outlines where the state would sit. Every species is mapped to human.
+from shapely.geometry import MultiPoint
+
+SCOL = [IDENT_M[1], IDENT_M[0], IDENT_M[2], IDENT_M[3]]      # state 1 green, state 2 blue, then red, ochre
+# per species: state -> list of clusters (a, b, angle, length, curvature); two entries = resolved substates
+LAYOUT = {
+    "human":     {0: [(0.13, 0.42, 20, 0.09, 0.05)], 1: [(0.36, 0.22, -10, 0.08, -0.04), (0.43, 0.74, 15, 0.08, 0.04)],
+                  2: [(0.64, 0.52, 35, 0.10, 0.06)], 3: [(0.86, 0.3, -25, 0.08, -0.04)]},
+    "macaque":   {0: [(0.15, 0.55, 10, 0.09, 0.05)], 1: [(0.4, 0.28, 5, 0.08, -0.05), (0.45, 0.78, -10, 0.07, 0.04)],
+                  2: [(0.68, 0.6, 25, 0.1, 0.05)], 3: [(0.87, 0.26, -35, 0.08, -0.04)]},
+    "mouse":     {0: [(0.2, 0.72, -25, 0.09, 0.05)], 1: [(0.42, 0.42, 60, 0.12, 0.06)],
+                  2: [(0.74, 0.25, -15, 0.1, -0.05)], 3: [(0.84, 0.72, 0, 0.07, 0.0)]},
+    "zebrafish": {0: [(0.24, 0.3, 30, 0.1, 0.05)], 1: [(0.52, 0.65, -40, 0.12, -0.06)],
+                  2: [(0.76, 0.35, 0, 0.08, 0.0)], 3: [(0.9, 0.72, 0, 0.07, 0.0)]},
+}
 MISSING = {"zebrafish": {2, 3}, "mouse": {3}, "macaque": set(), "human": set()}
-CENT = []
+
+
+def cloud(k, a, b, ang, length, curv, n=42):
+    """Cells along a short curved arc in plane coordinates, returned in figure coordinates."""
+    t = rs.uniform(-1, 1, n)
+    th = np.deg2rad(ang)
+    d, nrm = np.array([np.cos(th), np.sin(th) * 1.6]), np.array([-np.sin(th) * 0.6, np.cos(th) * 1.6])
+    ab = np.array([a, b]) + np.outer(t * length * 0.55, d) + np.outer(curv * 0.8 * (t ** 2 - 0.4), nrm)
+    ab += rs.normal(0, 1, (n, 2)) * [0.016, 0.045]
+    ab = np.clip(ab, [0.03, 0.05], [0.97, 0.95])
+    return np.array([Rk(k, u, v) for u, v in ab])
+
+
+CENT = {}
 for k, (lab, key) in enumerate(SPECIES):
     draw_plane(Rk, k, key, 9 - k)
-    cents = {}
-    for j, (sname, sc, ca, cb) in enumerate(STATES):
-        ca2, cb2 = ca + rs.normal(0, 0.025), cb + rs.normal(0, 0.04)
-        cents[j] = Rk(k, ca2, cb2)
-        if j in MISSING[key]:                                           # this species has no such state
-            ax.add_patch(Ellipse(cents[j], 0.5, 0.2, fc="none", ec=sc, lw=1.2, ls=(0, (1.5, 1.5)), zorder=12))
+    for j, clusters in LAYOUT[key].items():
+        col = SCOL[j]
+        for m, (a, b, ang, length, curv) in enumerate(clusters):
+            c = Rk(k, a, b)
+            CENT[(key, j, m)] = c
+            if j in MISSING[key]:                                       # this species has no such state
+                ax.add_patch(Ellipse(c, 0.46, 0.19, angle=ang * 0.3, fc="none", ec=col, lw=1.2,
+                                     ls=(0, (1.5, 1.5)), zorder=12))
+                continue
+            pts = cloud(k, a, b, ang, length, curv)
+            hull = MultiPoint([tuple(p) for p in pts]).buffer(0.08).buffer(-0.035)
+            for g in getattr(hull, "geoms", [hull]):
+                ax.add_patch(Polygon(np.array(g.exterior.coords), closed=True, fc=tint(col, 0.6), ec="none",
+                                     alpha=0.8, zorder=10))
+            ax.scatter(pts[:, 0], pts[:, 1], s=6, color=col, edgecolors="none", zorder=11)
+# each plane is linked to the next, down to human; a merged cluster forks onto both substates
+ORDER = [sp[1] for sp in SPECIES]
+for up, dn in zip(ORDER, ORDER[1:]):
+    for j in LAYOUT[up]:
+        if j in MISSING[up] or j in MISSING[dn]:
             continue
-        n = 28
-        ua = np.clip(ca2 + rs.normal(0, 0.035, n), 0.03, 0.97)
-        ub = np.clip(cb2 + rs.normal(0, 0.09, n), 0.06, 0.94)
-        pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
-        ax.scatter(pts[:, 0], pts[:, 1], s=8, color=sc, edgecolors="none", zorder=11)
-    CENT.append(cents)
-for ca, cb in zip(CENT, CENT[1:]):
-    for j in range(len(STATES)):
-        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=10)
+        srcs = [CENT[(up, j, m)] for m in range(len(LAYOUT[up][j]))]
+        dsts = [CENT[(dn, j, m)] for m in range(len(LAYOUT[dn][j]))]
+        pairs = list(zip(srcs, dsts)) if len(srcs) == len(dsts) else [(srcs[0], d) for d in dsts]
+        for p, q in pairs:
+            ax.plot([p[0], q[0]], [p[1], q[1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=20)
+            for e in (p, q):
+                ax.plot([e[0]], [e[1]], "o", ms=3.2, color="white", mec=MUTED, mew=0.8, zorder=21)
 header(ax, 6.85, 11.9, H3 - 0.18, "Mapped cell states")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 crop_to_ink(os.path.join(OUT, "transfer.png"))
