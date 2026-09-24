@@ -2,7 +2,7 @@
 layout: page
 permalink: /software/
 title: Software
-description: Methods released as software and data resources.
+description:
 nav: true
 nav_order: 3
 ---

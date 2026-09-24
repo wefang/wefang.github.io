@@ -7,7 +7,7 @@ nav: true
 nav_order: 5
 ---
 
-I taught in fourteen course-terms across five courses, to two audiences, graduate students in biostatistics and related quantitative fields, and scientists and public health students meeting statistical inference for the first time.
+I taught in fourteen course-terms across five courses, to two audiences, graduate students in biostatistics and related quantitative fields, and scientists and public health students without statistical background.
 
 **For graduate students in biostatistics and related quantitative fields**
 
@@ -22,6 +22,6 @@ I taught in fourteen course-terms across five courses, to two audiences, graduat
 
 ### Mentoring
 
-- **[Yi Yang](https://kalhorlab.bme.jhu.edu/people/yi-yang/)**, Master's student in Biomedical Engineering, 2022–2024, now a PhD candidate in Biomedical Engineering at Johns Hopkins
-- **[Smriti Srikanth](https://kalhorlab.bme.jhu.edu/people/smriti-srikanth/)**, undergraduate in Biomedical Engineering, 2022–2024, now a Computation Associate at the Broad Institute
-- **[Ashwin Rajendran](https://kalhorlab.bme.jhu.edu/people/ashwin-rajendran/)**, Master's student in Biomedical Engineering, 2023–2025, now a PhD candidate at Florida State University
+- **[Yi Yang](https://kalhorlab.bme.jhu.edu/people/yi-yang/)**, Master's student in Biomedical Engineering · mentored 2022–2024 · now a PhD candidate in Biomedical Engineering at Johns Hopkins
+- **[Smriti Srikanth](https://kalhorlab.bme.jhu.edu/people/smriti-srikanth/)**, undergraduate in Biomedical Engineering · mentored 2022–2024 · now a Computation Associate at the Broad Institute
+- **[Ashwin Rajendran](https://kalhorlab.bme.jhu.edu/people/ashwin-rajendran/)**, Master's student in Biomedical Engineering · mentored 2023–2025 · now a PhD candidate at Florida State University

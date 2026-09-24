@@ -9,7 +9,7 @@ and shown beside the full citation of the article it comes from.
 | li2023.png | Li et al., iScience 2023 (PMC9958491) | graphical abstract, unmodified | CC BY-NC-ND 4.0 |
 | keuthan2023.png | Keuthan et al., IJMS 2023 (PMC10531004) | Figure 1A, full panel | CC BY 4.0 |
 | chamling2021.png | Chamling et al., Nature Communications 2021 (PMC7844020) | Figure 1a (reporter design) above Figure 4a (single-cell UMAP), cropped | CC BY 4.0 |
-| fang2025chapter.png | Fang et al., Lineage Tracing: Methods and Protocols 2025 | Figure 1, from the authors' own figure files | Springer; author reuse of own figure |
+| fang2025chapter.png | Fang et al., Lineage Tracing: Methods and Protocols 2025 | Figure 4 (barcodes, pairwise time since MRCA, inferred phylogeny), from the authors' own figure files | Springer; author reuse of own figure |
 | zhou2019.png | Zhou et al., Nucleic Acids Research 2019 (PMC6821224) | Figure 2A, cropped | CC BY 4.0 |
 
 Not shown: the cV2F preprint (bioRxiv, all rights reserved).
