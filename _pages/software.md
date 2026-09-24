@@ -17,8 +17,8 @@ nav_order: 3
 
 <div class="software-item">
 <h3>FUNCODE</h3>
-<p class="software-meta">Code and resource · <a href="https://github.com/wefang/funcode">github.com/wefang/funcode</a> · <a href="https://doi.org/10.1101/2024.10.31.620766">preprint</a></p>
-<p>Genome-wide scores of <strong>functional conservation</strong> between human and mouse regulatory elements, computed from 2,595 uniformly processed ENCODE datasets (DNase-seq, ATAC-seq and histone ChIP-seq) through in silico sample matching. The repository holds the full pipeline, from mapping regions and integrating samples to computing the scores.</p>
+<p class="software-meta">Web application · <a href="https://jhubiostatistics.shinyapps.io/FUNCODE">jhubiostatistics.shinyapps.io/FUNCODE</a> · code at <a href="https://github.com/wefang/funcode">github.com/wefang/funcode</a> · <a href="https://www.encodeproject.org/search/?type=Annotation&amp;annotation_type=cross-species+functional+conservation">scores on the ENCODE portal</a> · <a href="https://doi.org/10.1101/2024.10.31.620766">preprint</a></p>
+<p>Genome-wide scores of <strong>functional conservation</strong> between human and mouse regulatory elements, computed from 2,595 uniformly processed ENCODE datasets (DNase-seq, ATAC-seq and histone ChIP-seq) through in silico sample matching. The <strong>web application</strong> looks up any human or mouse region, by coordinates or a BED file, and returns its conserved partner elements and their scores. The repository holds the full pipeline, from mapping regions and integrating samples to computing the scores.</p>
 <p><strong>Browse the scores in the UCSC Genome Browser:</strong> <a href="https://genome.ucsc.edu/cgi-bin/hgTracks?hubUrl=https://raw.githubusercontent.com/wefang/funcode/main/track_hubs/hub/hub.txt&amp;genome=hg38&amp;position=chr14:53920000-53990000">human (hg38)</a> · <a href="https://genome.ucsc.edu/cgi-bin/hgTracks?hubUrl=https://raw.githubusercontent.com/wefang/funcode/main/track_hubs/hub/hub.txt&amp;genome=mm10&amp;position=chr14:46352000-46422000">mouse (mm10)</a></p>
 </div>
 
