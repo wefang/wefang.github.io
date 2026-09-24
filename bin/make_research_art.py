@@ -61,8 +61,10 @@ def tint(c, f=0.55):
 # cell identities (fates, and cell states in the transfer figure): the blue, green and red of the
 # research statement's Figure 2, then two more muted hues for states 4 and 5
 IDENT_M = ["#6F8CA8", "#7DA58F", "#C48B66", "#D2AE5E", "#8F82AE"]
-# clones: a set with no blue, green or red, so a clone never reads as a fate
-CLONE_SET = ["#C9BCE3", "#F1B8C8", "#F2DD8C", "#F5C6A0", "#D8C8AA", "#BE97B6", "#E3CDEB", "#CFCDD3"]
+# clones: four hue families that sit away from the fates' blue, green and red and the signal's slate
+# (gold, violet, rose, grey), each in a light and a dark tone. Sister clones get neighbouring indices
+# and grow side by side, so the order alternates hue and lightness to keep every border visible.
+CLONE_SET = ["#E3B94F", "#6E5A9E", "#E39AB8", "#C9C8CF", "#F3DF9B", "#9C4F78", "#B7A6DA", "#6F6D78"]
 plt.rcParams["font.family"] = "DejaVu Sans"
 W, H = 12.0, 3.6
 DPI = 200
@@ -384,16 +386,17 @@ for (lab, key), y in zip(SPECIES, ROW):
 
 
 def plane(k, a, b, x0, wa, wb, hb):
-    """A point on plane k: a runs along the plane, b runs into it (drawn up and to the right)."""
-    return x0 + 0.3 * k + wa * a + wb * b, ROW[k] - 0.1 + hb * b
+    """A point on plane k: a runs along the plane, b runs into it (drawn up and to the right). The
+    planes of a stack are aligned vertically, so a link between two planes is a vertical line."""
+    return x0 + wa * a + wb * b, ROW[k] - 0.1 + hb * b
 
 
 def Lk(k, a, b):
-    return plane(k, a, b, 1.8, 3.75, 0.55, 0.42)
+    return plane(k, a, b, 2.0, 3.85, 0.55, 0.42)
 
 
 def Rk(k, a, b):
-    return plane(k, a, b, 6.6, 3.45, 0.7, 0.62)
+    return plane(k, a, b, 6.85, 3.75, 0.7, 0.62)
 
 
 def draw_plane(P, k, key, z):
@@ -434,7 +437,7 @@ for k, (lab, key) in enumerate(SPECIES):
 for k in range(3):
     for g in (GA, GB):
         p, q = Lk(k, g[SPECIES[k][1]], TRACK_B), Lk(k + 1, g[SPECIES[k + 1][1]], TRACK_B)
-        ax.plot([p[0] + 0.16, q[0] + 0.16], [p[1] - 0.07, q[1] + 0.07], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=1)
+        ax.plot([p[0] + 0.16, q[0] + 0.16], [p[1] - 0.07, q[1] + 0.07], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=5.5)
 # each model organism proposes a different human element, from the element it has evidence for
 for k, j in zip(range(3), (2, 1, 0)):
     key = SPECIES[k][1]
@@ -452,7 +455,7 @@ ax.plot([p[0], q[0] + 0.02], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.2, ls
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.05, q[1] + 0.23], color=MUTED, lw=2.0, zorder=7)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=2.0, zorder=7)
 text(ax, q[0] - 0.1, ROW[3] - 0.26, "No human counterpart", fontsize=9, color=MUTED)
-text(ax, 3.9, 4.42, "Regulatory Elements", fontsize=12, color=INK)
+text(ax, 4.2, 4.42, "Regulatory Elements", fontsize=12, color=INK)
 
 # ---------------- right: a stack of embedding planes, one cluster per cell state ----------------
 STATES = [("State %d" % (j + 1), IDENT_M[j], ca, cb) for j, (ca, cb) in
@@ -466,18 +469,18 @@ for k, (lab, key) in enumerate(SPECIES):
         ca2, cb2 = ca + rs.normal(0, 0.025), cb + rs.normal(0, 0.04)
         cents[j] = Rk(k, ca2, cb2)
         if j in MISSING[key]:                                           # this species has no such state
-            ax.add_patch(Ellipse(cents[j], 0.5, 0.2, fc="none", ec=sc, lw=1.2, ls=(0, (1.5, 1.5)), zorder=11))
+            ax.add_patch(Ellipse(cents[j], 0.5, 0.2, fc="none", ec=sc, lw=1.2, ls=(0, (1.5, 1.5)), zorder=12))
             continue
         n = 28
         ua = np.clip(ca2 + rs.normal(0, 0.035, n), 0.03, 0.97)
         ub = np.clip(cb2 + rs.normal(0, 0.09, n), 0.06, 0.94)
         pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
-        ax.scatter(pts[:, 0], pts[:, 1], s=8, color=sc, edgecolors="none", zorder=10 - k)
+        ax.scatter(pts[:, 0], pts[:, 1], s=8, color=sc, edgecolors="none", zorder=11)
     CENT.append(cents)
 for ca, cb in zip(CENT, CENT[1:]):
     for j in range(len(STATES)):
-        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=GREY, lw=0.9, ls=(0, (3, 2)), zorder=1)
-text(ax, 8.95, 4.42, "Mapped Cell States", fontsize=12, color=INK)
+        ax.plot([ca[j][0], cb[j][0]], [ca[j][1], cb[j][1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=10)
+text(ax, 9.05, 4.42, "Mapped Cell States", fontsize=12, color=INK)
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 plt.close(fig)
 print("wrote", sorted(os.listdir(OUT)))

@@ -11,7 +11,7 @@ nav_order: 3
 
 <div class="software-item">
 <h3>QFM</h3>
-<p class="software-meta">R package · <a href="https://github.com/Kalhor-Lab/QFM">github.com/Kalhor-Lab/QFM</a> · <a href="https://kalhor-lab.github.io/QFM/">documentation and tutorials</a> · <a href="https://zenodo.org/records/7114804">Zenodo archive</a></p>
+<p class="software-meta">R package · <a href="https://github.com/Kalhor-Lab/QFM">github.com/Kalhor-Lab/QFM</a> · <a href="https://kalhor-lab.github.io/QFM/articles/basic_tutorial.html">documentation and tutorials</a> · <a href="https://zenodo.org/records/7114804">Zenodo archive</a></p>
 <p>Quantitative fate mapping from lineage barcodes. <strong>Phylotime</strong> reconstructs time-scaled cell phylogenies by maximum likelihood under a general model of barcode mutagenesis, and <strong>ICE-FASE</strong> infers the progenitor state hierarchy, commitment times, population sizes and commitment biases from them. Includes a simulator for cell phylogenies and lineage barcodes. Described in <a href="/publications/">Fang et al., <em>Cell</em> 2022</a>.</p>
 </div>
 
