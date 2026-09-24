@@ -3,7 +3,7 @@ layout: about
 title: About
 permalink: /
 subtitle: >
-  Postdoctoral Fellow, Department of Biomedical Engineering, Johns Hopkins University<br><span class="address">855 N. Wolfe St., Rangos 570, Baltimore, MD 21205 · wfang58@gmail.com</span>
+  Postdoctoral Fellow, Department of Biomedical Engineering, Johns Hopkins University<br><span class="address">855 N. Wolfe St., Rangos 570, Baltimore, MD 21205 · <a href="#" class="al-email-protect" data-eu="wfang9" data-ed="jh.edu"><span class="al-email-text">wfang9</span><span class="al-email-sep"> [at] </span><span class="al-email-text">jh</span><span class="al-email-sep"> [dot] </span><span class="al-email-text">edu</span></a></span>
 
 profile:
   align: right
