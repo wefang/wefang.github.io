@@ -24,7 +24,9 @@ latest_posts:
 
 I am a postdoctoral fellow in the [Kalhor Lab](https://kalhorlab.bme.jhu.edu) at Johns Hopkins, where I work closely with wet lab scientists. I received my **PhD in Biostatistics** from the Johns Hopkins Bloomberg School of Public Health, working with [Dr. Hongkai Ji](https://jilab.org).
 
-I develop **statistical and machine learning methods** for data produced by emerging genomics technologies, beginning with **genomic records**, the edits an engineered recorder writes into a cell's own DNA. I use them to infer **the dynamics of cell fate determination**, and to **transfer what a model organism reveals** about the regulatory control of fate **into human**.
+I work with genomic lineage recorders, which can now barcode millions of cells and trace the division tree of a whole embryo. Learning biology from that tree is much harder. I developed **[Quantitative Fate Mapping](/publications/)** (*Cell*, 2022) to do it, recovering when progenitors commit and how many cells go to each fate, decisions that cannot be watched otherwise.
+
+I also built **[FUNCODE](/software/)** for the ENCODE Consortium, because regulatory DNA evolves fast, and an active mouse enhancer often aligns to a human sequence with no function at all. FUNCODE scores whether an element's functional signal is conserved between human and mouse, which helps prioritize mouse findings for translation to human.
 
 ### Research Areas
 
