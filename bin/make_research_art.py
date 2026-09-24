@@ -478,23 +478,31 @@ def draw_plane(P, k, key, z):
 
 
 # ---------------- left: a signal track on each plane ----------------
-ELEM = {"zebrafish": [0.24, 0.6, 0.73], "mouse": [0.22, 0.48, 0.76], "macaque": [0.26, 0.5, 0.75], "human": [0.26, 0.51, 0.755]}
+# Regulatory elements turn over between species. Each named element sits at its own position in each
+# species, and matching elements are linked plane to plane, so rearrangements show as crossing links:
+# E2 and E3 are swapped in zebrafish, and E4 has moved to the other side of E2 in mouse. Z is a
+# zebrafish element that is lost in mammals (no human counterpart, a cross), and P is a primate
+# element gained in macaque and human (no link reaches it from mouse).
+POS = {
+    "zebrafish": {"E1": 0.26, "E3": 0.45, "E2": 0.6, "Z": 0.78},
+    "mouse":     {"E1": 0.22, "E4": 0.36, "E2": 0.52, "E3": 0.68},
+    "macaque":   {"E1": 0.25, "P": 0.34, "E2": 0.45, "E3": 0.61, "E4": 0.77},
+    "human":     {"E1": 0.26, "P": 0.35, "E2": 0.46, "E3": 0.62, "E4": 0.78},
+}
 GA = {"zebrafish": 0.03, "mouse": 0.02, "macaque": 0.04, "human": 0.04}      # gene A, left flank
-GB = {"zebrafish": 0.86, "mouse": 0.89, "macaque": 0.88, "human": 0.885}     # gene B, reverse strand
+GB = {"zebrafish": 0.87, "mouse": 0.89, "macaque": 0.88, "human": 0.885}     # gene B, reverse strand
 TRACK_B = 0.3                                    # the track runs along the plane at this depth
-NOMAP = 0.4                                      # a zebrafish element that maps to nothing in human
-aa = np.linspace(0.0, 1.0, 600)
+PEAK = 0.45
+aa = np.linspace(0.0, 1.0, 700)
 for k, (lab, key) in enumerate(SPECIES):
     draw_plane(Lk, k, key, 2 + k * 0.01)
     sig = 0.03 * rs.random(aa.size)
-    for e in ELEM[key]:
-        sig += 0.5 * np.exp(-((aa - e) ** 2) / (2 * 0.011 ** 2))
-    for e in rs.uniform(0.12, 0.8, 3):                                   # species-specific peaks
-        if key == "human" and abs(e - NOMAP) < 0.07:
-            continue
-        sig += 0.15 * np.exp(-((aa - e) ** 2) / (2 * 0.008 ** 2))
-    if key == "zebrafish":                                              # an element with no human counterpart
-        sig += 0.42 * np.exp(-((aa - NOMAP) ** 2) / (2 * 0.011 ** 2))
+    for name, e in POS[key].items():
+        h = PEAK * (0.75 if name in ("Z", "P") else 1.0)
+        sig += h * np.exp(-((aa - e) ** 2) / (2 * 0.011 ** 2))
+    for e in rs.uniform(0.1, 0.84, 2):                                   # small species-specific peaks
+        if min(abs(e - v) for v in POS[key].values()) > 0.05:
+            sig += 0.12 * np.exp(-((aa - e) ** 2) / (2 * 0.008 ** 2))
     base = np.array([Lk(k, a, TRACK_B) for a in aa])
     ax.fill_between(base[:, 0], base[:, 1], base[:, 1] + 0.95 * sig, color=scol(key), alpha=0.85, lw=0, zorder=5)
     ax.plot(base[:, 0], base[:, 1], color=GREY, lw=0.9, zorder=4)
@@ -506,28 +514,35 @@ for k, (lab, key) in enumerate(SPECIES):
         ax.add_patch(Polygon([(gx + px, gy + py) for px, py in pts], closed=True, fc=INK, ec="none", zorder=6))
         if k == 0:
             text(ax, gx + 0.16, gy + 0.2, name, fontsize=9.5, color=INK, style="italic")
-# orthologous genes joined plane to plane
+# orthologous genes and matching elements joined plane to plane, drawn over the planes
 for k in range(3):
+    up, dn = SPECIES[k][1], SPECIES[k + 1][1]
     for g in (GA, GB):
-        p, q = Lk(k, g[SPECIES[k][1]], TRACK_B), Lk(k + 1, g[SPECIES[k + 1][1]], TRACK_B)
+        p, q = Lk(k, g[up], TRACK_B), Lk(k + 1, g[dn], TRACK_B)
         ax.plot([p[0] + 0.16, q[0] + 0.16], [p[1] - 0.07, q[1] + 0.07], color=MUTED, lw=0.9, ls=(0, (2, 2)), zorder=5.5)
-# each model organism proposes a different human element, from the element it has evidence for
-for k, j in zip(range(3), (2, 1, 0)):
-    key = SPECIES[k][1]
-    p = Lk(k, ELEM[key][j], TRACK_B)
-    q = Lk(3, ELEM["human"][j], TRACK_B)
-    ax.add_patch(FancyArrowPatch((p[0] + 0.05, p[1] + 0.3), (q[0] + 0.03, q[1] + 0.5),
-                                 connectionstyle="arc3,rad=-0.3", arrowstyle="-|>", mutation_scale=11,
-                                 color=INK, lw=1.3, zorder=7))
-    hx, hy = q
-    ax.add_patch(matplotlib.patches.Ellipse((hx, hy + 0.22), 0.2, 0.56, fc="none", ec=ACCENT, lw=1.4, zorder=7))
-# the no-map example: the zebrafish element has no counterpart in human, so its line ends in a cross
-p = Lk(0, NOMAP, TRACK_B)
-q = Lk(3, NOMAP, TRACK_B)
-ax.plot([p[0], q[0] + 0.02], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.2, ls=(0, (3, 2)), zorder=6)
+    for name, e in POS[up].items():
+        if name in POS[dn]:
+            p, q = Lk(k, e, TRACK_B), Lk(k + 1, POS[dn][name], TRACK_B)
+            ax.plot([p[0], q[0]], [p[1] - 0.02, q[1] + 0.02], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=5.6)
+# the lost element: Z has no counterpart past zebrafish, so its line ends in a cross on the mouse plane
+p, q = Lk(0, POS["zebrafish"]["Z"], TRACK_B), Lk(1, 0.8, TRACK_B)
+ax.plot([p[0], q[0]], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.0, ls=(0, (3, 2)), zorder=6)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.05, q[1] + 0.23], color=MUTED, lw=2.0, zorder=7)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=2.0, zorder=7)
-text(ax, q[0] - 0.1, ROW[3] - 0.26, "No human counterpart", fontsize=9, color=MUTED)
+# each model organism proposes a different human element, from the element it has evidence for
+for k, name in zip(range(3), ("E1", "E4", "E3")):
+    key = SPECIES[k][1]
+    p = Lk(k, POS[key][name], TRACK_B)
+    q = Lk(3, POS["human"][name], TRACK_B)
+    ax.add_patch(FancyArrowPatch((p[0] + 0.06, p[1] + 0.3), (q[0] + 0.03, q[1] + 0.48),
+                                 connectionstyle="arc3,rad=-0.28", arrowstyle="-|>", mutation_scale=11,
+                                 color=INK, lw=1.3, zorder=7))
+    ax.add_patch(matplotlib.patches.Ellipse((q[0], q[1] + 0.21), 0.2, 0.54, fc="none", ec=ACCENT, lw=1.4, zorder=7))
+# the gained element: P appears in primates only
+pm = Lk(2, POS["macaque"]["P"], TRACK_B)
+text(ax, pm[0] - 0.02, pm[1] + 0.52, "Gained", fontsize=9, color=MUTED)
+qz = Lk(1, 0.8, TRACK_B)
+text(ax, qz[0] + 0.02, qz[1] - 0.2, "Lost", fontsize=9, color=MUTED)
 header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 
 # ---------------- right: a stack of embedding planes, one per species ----------------
