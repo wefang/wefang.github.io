@@ -480,17 +480,17 @@ def draw_plane(P, k, key, z):
 # ---------------- left: a signal track on each plane ----------------
 # Regulatory elements turn over between species. Each named element sits at its own position in each
 # species, and matching elements are linked plane to plane, so rearrangements show as crossing links:
-# E2 and E3 are swapped in zebrafish, and E4 has moved to the other side of E2 in mouse. Z is a
+# the alignment is mostly collinear, with one local inversion (E2 and E3 swapped in zebrafish). Z is a
 # zebrafish element that is lost in mammals (no human counterpart, a cross), and P is a primate
 # element gained in macaque and human (no link reaches it from mouse).
 POS = {
-    "zebrafish": {"E1": 0.26, "E3": 0.45, "E2": 0.6, "Z": 0.78},
-    "mouse":     {"E1": 0.22, "E4": 0.36, "E2": 0.52, "E3": 0.68},
-    "macaque":   {"E1": 0.25, "P": 0.34, "E2": 0.45, "E3": 0.61, "E4": 0.77},
-    "human":     {"E1": 0.26, "P": 0.35, "E2": 0.46, "E3": 0.62, "E4": 0.78},
+    "zebrafish": {"E1": 0.25, "E3": 0.46, "E2": 0.6, "Z": 0.69},
+    "mouse":     {"E1": 0.25, "E2": 0.46, "E3": 0.61, "E4": 0.76},
+    "macaque":   {"E1": 0.25, "P": 0.35, "E2": 0.46, "E3": 0.61, "E4": 0.77},
+    "human":     {"E1": 0.25, "P": 0.35, "E2": 0.46, "E3": 0.61, "E4": 0.77},
 }
-GA = {"zebrafish": 0.03, "mouse": 0.02, "macaque": 0.04, "human": 0.04}      # gene A, left flank
-GB = {"zebrafish": 0.87, "mouse": 0.89, "macaque": 0.88, "human": 0.885}     # gene B, reverse strand
+GA = {"zebrafish": 0.04, "mouse": 0.04, "macaque": 0.04, "human": 0.04}      # gene A, left flank
+GB = {"zebrafish": 0.88, "mouse": 0.88, "macaque": 0.88, "human": 0.88}      # gene B, reverse strand
 TRACK_B = 0.3                                    # the track runs along the plane at this depth
 PEAK = 0.45
 aa = np.linspace(0.0, 1.0, 700)
@@ -512,8 +512,8 @@ for k, (lab, key) in enumerate(SPECIES):
         if strand < 0:
             pts = [(0.32 - px, py) for px, py in pts]
         ax.add_patch(Polygon([(gx + px, gy + py) for px, py in pts], closed=True, fc=INK, ec="none", zorder=6))
-        if k == 0:
-            text(ax, gx + 0.16, gy + 0.2, name, fontsize=9.5, color=INK, style="italic")
+        if key == "human":                                            # named once, on the reference
+            text(ax, gx + 0.16, gy - 0.2, name, fontsize=9.5, color=INK, style="italic")
 # orthologous genes and matching elements joined plane to plane, drawn over the planes
 for k in range(3):
     up, dn = SPECIES[k][1], SPECIES[k + 1][1]
@@ -525,12 +525,12 @@ for k in range(3):
             p, q = Lk(k, e, TRACK_B), Lk(k + 1, POS[dn][name], TRACK_B)
             ax.plot([p[0], q[0]], [p[1] - 0.02, q[1] + 0.02], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=5.6)
 # the lost element: Z has no counterpart past zebrafish, so its line ends in a cross on the mouse plane
-p, q = Lk(0, POS["zebrafish"]["Z"], TRACK_B), Lk(1, 0.8, TRACK_B)
+p, q = Lk(0, POS["zebrafish"]["Z"], TRACK_B), Lk(1, POS["zebrafish"]["Z"], TRACK_B)
 ax.plot([p[0], q[0]], [p[1] - 0.02, q[1] + 0.12], color=MUTED, lw=1.0, ls=(0, (3, 2)), zorder=6)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.05, q[1] + 0.23], color=MUTED, lw=2.0, zorder=7)
 ax.plot([q[0] - 0.07, q[0] + 0.11], [q[1] + 0.23, q[1] + 0.05], color=MUTED, lw=2.0, zorder=7)
 # each model organism proposes a different human element, from the element it has evidence for
-for k, name in zip(range(3), ("E1", "E4", "E3")):
+for k, name in zip(range(3), ("E1", "E2", "E4")):
     key = SPECIES[k][1]
     p = Lk(k, POS[key][name], TRACK_B)
     q = Lk(3, POS["human"][name], TRACK_B)
@@ -541,7 +541,7 @@ for k, name in zip(range(3), ("E1", "E4", "E3")):
 # the gained element: P appears in primates only
 pm = Lk(2, POS["macaque"]["P"], TRACK_B)
 text(ax, pm[0] - 0.02, pm[1] + 0.52, "Gained", fontsize=9, color=MUTED)
-qz = Lk(1, 0.8, TRACK_B)
+qz = Lk(1, POS["zebrafish"]["Z"], TRACK_B)
 text(ax, qz[0] + 0.02, qz[1] - 0.2, "Lost", fontsize=9, color=MUTED)
 header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 
@@ -553,63 +553,62 @@ header(ax, 1.95, 6.65, H3 - 0.18, "Regulatory elements")
 # are drawn as dotted outlines where the state would sit. Every species is mapped to human.
 from shapely.geometry import MultiPoint
 
-SCOL = [IDENT_M[1], IDENT_M[0], IDENT_M[2], IDENT_M[3]]      # state 1 green, state 2 blue, then red, ochre
-# per species: state -> list of clusters (a, b, angle, length, curvature); two entries = resolved substates
-LAYOUT = {
-    "human":     {0: [(0.13, 0.42, 20, 0.09, 0.05)], 1: [(0.36, 0.22, -10, 0.08, -0.04), (0.43, 0.74, 15, 0.08, 0.04)],
-                  2: [(0.64, 0.52, 35, 0.10, 0.06)], 3: [(0.86, 0.3, -25, 0.08, -0.04)]},
-    "macaque":   {0: [(0.15, 0.55, 10, 0.09, 0.05)], 1: [(0.4, 0.28, 5, 0.08, -0.05), (0.45, 0.78, -10, 0.07, 0.04)],
-                  2: [(0.68, 0.6, 25, 0.1, 0.05)], 3: [(0.87, 0.26, -35, 0.08, -0.04)]},
-    "mouse":     {0: [(0.2, 0.72, -25, 0.09, 0.05)], 1: [(0.42, 0.42, 60, 0.12, 0.06)],
-                  2: [(0.74, 0.25, -15, 0.1, -0.05)], 3: [(0.84, 0.72, 0, 0.07, 0.0)]},
-    "zebrafish": {0: [(0.24, 0.3, 30, 0.1, 0.05)], 1: [(0.52, 0.65, -40, 0.12, -0.06)],
-                  2: [(0.76, 0.35, 0, 0.08, 0.0)], 3: [(0.9, 0.72, 0, 0.07, 0.0)]},
-}
+SCOL = [IDENT_M[1], IDENT_M[0], IDENT_M[2], IDENT_M[3]]      # state 1 green, 2 blue, 3 red, 4 yellow
+# each species' embedding is a trajectory 1 -> 2 -> 3 with a small late branch into 4; the curve bends
+# a little differently in each species, as independent embeddings do
+WARP = {"zebrafish": (0.1, -0.12), "mouse": (-0.08, 0.1), "macaque": (0.06, -0.05), "human": (0.0, 0.0)}
 MISSING = {"zebrafish": {2, 3}, "mouse": {3}, "macaque": set(), "human": set()}
 
 
-def cloud(k, a, b, ang, length, curv, n=42):
-    """Cells along a short curved arc in plane coordinates, returned in figure coordinates."""
-    t = rs.uniform(-1, 1, n)
-    th = np.deg2rad(ang)
-    d, nrm = np.array([np.cos(th), np.sin(th) * 1.6]), np.array([-np.sin(th) * 0.6, np.cos(th) * 1.6])
-    ab = np.array([a, b]) + np.outer(t * length * 0.55, d) + np.outer(curv * 0.8 * (t ** 2 - 0.4), nrm)
-    ab += rs.normal(0, 1, (n, 2)) * [0.016, 0.045]
-    ab = np.clip(ab, [0.03, 0.05], [0.97, 0.95])
-    return np.array([Rk(k, u, v) for u, v in ab])
+def trunk(t, key):
+    bend, tilt = WARP[key]
+    a = 0.06 + 0.84 * t
+    b = 0.3 + 0.42 * t + (0.22 + bend) * np.sin(np.pi * t) + tilt * t
+    return a, b
+
+
+def branch(u, key):
+    a0, b0 = trunk(0.72, key)
+    return a0 + 0.2 * u, b0 - 0.62 * u ** 1.2
+
+
+def spread(a, b, sa, sb):
+    return np.clip(a + rs.normal(0, sa, np.shape(a)), 0.03, 0.97), np.clip(b + rs.normal(0, sb, np.shape(b)), 0.06, 0.94)
 
 
 CENT = {}
 for k, (lab, key) in enumerate(SPECIES):
     draw_plane(Rk, k, key, 9 - k)
-    for j, clusters in LAYOUT[key].items():
-        col = SCOL[j]
-        for m, (a, b, ang, length, curv) in enumerate(clusters):
-            c = Rk(k, a, b)
-            CENT[(key, j, m)] = c
-            if j in MISSING[key]:                                       # this species has no such state
-                ax.add_patch(Ellipse(c, 0.46, 0.19, angle=ang * 0.3, fc="none", ec=col, lw=1.2,
-                                     ls=(0, (1.5, 1.5)), zorder=12))
-                continue
-            pts = cloud(k, a, b, ang, length, curv)
-            hull = MultiPoint([tuple(p) for p in pts]).buffer(0.08).buffer(-0.035)
-            for g in getattr(hull, "geoms", [hull]):
-                ax.add_patch(Polygon(np.array(g.exterior.coords), closed=True, fc=tint(col, 0.6), ec="none",
-                                     alpha=0.8, zorder=10))
-            ax.scatter(pts[:, 0], pts[:, 1], s=6, color=col, edgecolors="none", zorder=11)
-# each plane is linked to the next, down to human; a merged cluster forks onto both substates
+    segs = [(0, 0.0, 0.33), (1, 0.33, 0.66), (2, 0.66, 1.0)]
+    for j, t0, t1 in segs:
+        cen = Rk(k, *trunk((t0 + t1) / 2, key))
+        CENT[(key, j)] = cen
+        if j in MISSING[key]:
+            ax.add_patch(Ellipse(cen, 0.62, 0.22, fc="none", ec=SCOL[j], lw=1.2, ls=(0, (1.5, 1.5)), zorder=12))
+            continue
+        t = rs.uniform(t0, t1, 70)
+        ua, ub = spread(*trunk(t, key), 0.025, 0.1)
+        pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
+        ax.scatter(pts[:, 0], pts[:, 1], s=6, color=SCOL[j], edgecolors="none", alpha=0.9, zorder=11)
+    cen = Rk(k, *branch(0.75, key))
+    CENT[(key, 3)] = cen
+    if 3 in MISSING[key]:
+        ax.add_patch(Ellipse(cen, 0.4, 0.18, fc="none", ec=SCOL[3], lw=1.2, ls=(0, (1.5, 1.5)), zorder=12))
+    else:
+        u = rs.uniform(0.15, 1.0, 26)
+        ua, ub = spread(*branch(u, key), 0.018, 0.06)
+        pts = np.array([Rk(k, x, y) for x, y in zip(ua, ub)])
+        ax.scatter(pts[:, 0], pts[:, 1], s=6, color=SCOL[3], edgecolors="none", alpha=0.95, zorder=11)
+# each plane is linked to the next, down to human, state by state
 ORDER = [sp[1] for sp in SPECIES]
 for up, dn in zip(ORDER, ORDER[1:]):
-    for j in LAYOUT[up]:
+    for j in range(4):
         if j in MISSING[up] or j in MISSING[dn]:
             continue
-        srcs = [CENT[(up, j, m)] for m in range(len(LAYOUT[up][j]))]
-        dsts = [CENT[(dn, j, m)] for m in range(len(LAYOUT[dn][j]))]
-        pairs = list(zip(srcs, dsts)) if len(srcs) == len(dsts) else [(srcs[0], d) for d in dsts]
-        for p, q in pairs:
-            ax.plot([p[0], q[0]], [p[1], q[1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=20)
-            for e in (p, q):
-                ax.plot([e[0]], [e[1]], "o", ms=3.2, color="white", mec=MUTED, mew=0.8, zorder=21)
+        p, q = CENT[(up, j)], CENT[(dn, j)]
+        ax.plot([p[0], q[0]], [p[1], q[1]], color=MUTED, lw=0.9, ls=(0, (3, 2)), zorder=20)
+        for e in (p, q):
+            ax.plot([e[0]], [e[1]], "o", ms=3.2, color="white", mec=MUTED, mew=0.8, zorder=21)
 header(ax, 6.85, 11.9, H3 - 0.18, "Mapped cell states")
 fig.savefig(os.path.join(OUT, "transfer.png"), dpi=DPI, facecolor="white")
 crop_to_ink(os.path.join(OUT, "transfer.png"))
