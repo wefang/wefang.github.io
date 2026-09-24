@@ -556,10 +556,12 @@ from shapely.geometry import MultiPoint
 
 SCOL = [IDENT_M[1], IDENT_M[0], IDENT_M[2], IDENT_M[3]]      # 0 green, 1 blue, 2 red, 3 yellow
 # each species' embedding is a blue progenitor trunk that forks into green and red, with a small late
-# branch from red into yellow; the curves bend a little differently in each species
+# branch from red into yellow; the curves bend a little differently in each species. Zebrafish lacks the
+# yellow branch but has an arm of its own (violet), which has no counterpart and so no link
 WARP = {"zebrafish": (0.06, -0.05), "mouse": (-0.05, 0.06), "macaque": (0.04, -0.03), "human": (0.0, 0.0)}
-MISSING = {"zebrafish": {2, 3}, "mouse": {3}, "macaque": set(), "human": set()}
+MISSING = {"zebrafish": {3}, "mouse": {3}, "macaque": set(), "human": set()}
 FORK = (0.4, 0.52)
+EXTRA = {"zebrafish"}              # species with an arm of their own, which maps to nothing in human
 
 
 def path(kind, t, key):
@@ -570,6 +572,8 @@ def path(kind, t, key):
         return FORK[0] + 0.52 * t, FORK[1] + (0.44 + tilt) * t ** 0.6
     if kind == "down":                                    # red, down and right from the fork
         return FORK[0] + 0.5 * t, FORK[1] - (0.42 - tilt) * t ** 0.6
+    if kind == "own":                                     # a zebrafish-only arm, off the trunk
+        return 0.2 + 0.34 * t, 0.46 - 0.42 * t ** 0.7
     a0, b0 = path("down", 0.6, key)                       # yellow, late off red
     return a0 + 0.2 * t, b0 + 0.22 * t
 
@@ -593,6 +597,11 @@ for k, (lab, key) in enumerate(SPECIES):
         ua, ub = spread(*path(kind, t, key), 0.02, 0.06 if kind == "trunk" else 0.045)
         pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
         ax.scatter(pts[:, 0], pts[:, 1], s=6, color=SCOL[j], edgecolors="none", alpha=0.9, zorder=11)
+    if key in EXTRA:
+        t = rs.uniform(0.15, 1.0, 48)
+        ua, ub = spread(*path("own", t, key), 0.018, 0.04)
+        pts = np.array([Rk(k, u, v) for u, v in zip(ua, ub)])
+        ax.scatter(pts[:, 0], pts[:, 1], s=6, color=IDENT_M[4], edgecolors="none", alpha=0.95, zorder=11)
 # each plane is linked to the next, down to human, state by state
 ORDER = [sp[1] for sp in SPECIES]
 for up, dn in zip(ORDER, ORDER[1:]):
